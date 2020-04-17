@@ -14,6 +14,8 @@
 
 
 int printPrompt();
-int processCommand(char* commandStr);
+int processCommand(char *commandStr);
+void processDelete(char *paramStr);
+int getArg(char* paramStr, char *argv[10]);
 
 #endif

@@ -4,7 +4,7 @@
 #include <string.h>
 #include "prompt.h"
 
-
+char command[10];
 char promptBuffer[BUF_LEN];
 
 char* commandList[6] = {
@@ -40,19 +40,21 @@ int processCommand(char* commandStr) {
 		return 0;
 	}
 
-	if (!strcmp(operator, DELETE)) {
+	strcpy(command, operator);
+
+	if (!strcmp(command, DELETE)) {
 		printf("Delete\n");
 	}
-	else if (!strcmp(operator, SIZE)) {
+	else if (!strcmp(command, SIZE)) {
 		printf("Size\n");
 	}
-	else if (!strcmp(operator, RECOVER)) {
+	else if (!strcmp(command, RECOVER)) {
 		printf("Recover\n");
 	}
-	else if (!strcmp(operator, TREE)) {
+	else if (!strcmp(command, TREE)) {
 		printf("Tree\n");
 	}
-	else if (!strcmp(operator, EXIT)) {
+	else if (!strcmp(command, EXIT)) {
 		printf("Exit\n");
 		return 1;
 	}

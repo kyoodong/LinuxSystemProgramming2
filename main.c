@@ -13,5 +13,7 @@ int main() {
 		if (isEnd)
 			break;
 	}
+
+	// 시간 출력 해야하나
 	exit(0);
 }

@@ -3,7 +3,15 @@
 #include <unistd.h>
 #include "prompt.h"
 
+
 int main() {
-	printPrompt();
+	int isEnd = 0;
+
+	while (1) {
+		isEnd = printPrompt();
+
+		if (isEnd)
+			break;
+	}
 	exit(0);
 }

@@ -5,7 +5,6 @@
 #include "prompt.h"
 #include "core.h"
 
-extern char errorString[BUF_LEN];
 char command[10];
 char promptBuffer[BUF_LEN];
 
@@ -23,11 +22,21 @@ char* commandList[6] = {
   @return 종료 시 1, 종료 아닐 시 0
   */
 int printPrompt() {
+	char c;
+	int index = 0;
+
 	printf("%s> ", STUDENT_ID);
-	fgets(promptBuffer, sizeof(promptBuffer), stdin);
-	promptBuffer[strlen(promptBuffer) - 1] = '\0';
+
+	while ((c = getchar()) != '\n' && c != EOF) {
+		promptBuffer[index++] = c;
+	}
+
+	if (index == 0) {
+		sleep(1000);
+	}
+	promptBuffer[index] = '\0';
 	if (processCommand(promptBuffer) < 0) {
-		fprintf(stderr, "%s\n", errorString);
+		fprintf(stderr, "processCommand error\n");
 	}
 }
 
@@ -92,8 +101,6 @@ void processDelete(char *paramStr) {
 	if (argc >= 3 && argv[1][0] != '-' && argv[2][0] != '-') {
 		endDate = argv[1];
 		endTime = argv[2];
-		
-		printf("endDate = %s\nendTime = %s\n", endDate, endTime);
 	}
 
 	// 옵션 체크
@@ -115,7 +122,7 @@ void processDelete(char *paramStr) {
 
 	// delete 처리 로직
 	if (deleteFile(filename, endDate, endTime, iOption, rOption) < 0) {
-		fprintf(stderr, "%s\n", errorString);
+		fprintf(stderr, "deleteFile error\n");
 	}
 
 	for (int i = 0; i < argc; i++) {

@@ -1,42 +1,151 @@
+#define _XOPEN_SOURCE 700
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <time.h>
+#include <pthread.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include "prompt.h"
 #include "core.h"
 
-char errorString[BUF_LEN];
 char cwd[BUF_LEN];
+struct deletion_node *deletion_list;
 
 int init() {
 	char *p;
+	pthread_t deletingThread;
+	int threadId;
 
 	getcwd(cwd, sizeof(cwd));
+
+	// 삭제 리스트 검사하는 스레드 생성
+	threadId = pthread_create(&deletingThread, NULL, deleteThread, NULL);
+
+	if (threadId < 0) {
+		perror("thread create error : ");
+		exit(1);
+	}
+}
+
+void* deleteThread() {
+	struct deletion_node *node, *tmp;
+	time_t curTime;
+	while (1) {
+		node = deletion_list;
+		curTime = time(NULL);
+		while (node != NULL) {
+			// 삭제해야하는 파일 발견 시
+			if (node->endTime <= curTime) {
+				tmp = node;
+
+				// r 옵션 켜져있었으면 물어보고 삭제
+				if (node->rOption) {
+					printf("Delete [y/n]? ");
+					char c = getchar();
+
+					// 파일 삭제 안한다고하면 삭제 리스트에서만 제거
+					if (c == 'n') {
+						node = node->next;
+						removeDeletionNode(tmp);
+						continue;
+					}
+				}
+
+				// 파일 삭제 후 삭제 리스트에서 제거
+				if (node->iOption) {
+					remove(node->filepath);
+				} else {
+					if (sendToTrash(node->filepath) < 0) {
+						fprintf(stderr, "sendToTrash error\n");
+						exit(1);
+					}
+				}
+				node = node->next;
+				removeDeletionNode(tmp);
+			} else {
+				break;
+			}
+		}
+		sleep(DELETE_INTERVAL);
+	}
+}
+
+void removeDeletionNode(struct deletion_node *node) {
+	// 루트
+	if (node->prev == NULL) {
+		free(node);
+		deletion_list = NULL;
+		return;
+	}
+
+	node->prev->next = node->next;
+
+	if (node->next != NULL) {
+		node->next->prev = node->prev;
+	}
+	free(node);
+}
+
+void insertDeletionNode(struct deletion_node *node) {
+	struct deletion_node *tmp, *prev;
+
+	if (deletion_list == NULL) {
+		node->prev = NULL;
+		node->next = NULL;
+		deletion_list = node;
+		return;
+	}
+
+	tmp = deletion_list;
+	prev = NULL;
+	while (tmp->endTime < node->endTime) {
+		prev = tmp;
+		tmp = tmp->next;
+
+		if (tmp == NULL)
+			break;
+	}
+
+	// 맨 앞에 추가되어야 하는 경우
+	if (prev == NULL) {
+		node->next = deletion_list;
+		deletion_list->prev = node;
+		deletion_list = node;
+		return;
+	}
+
+	node->next = prev->next;
+	prev->next = node;
+	node->prev = prev;
+
+	if (node->next != NULL)
+		node->next->prev = node;
 }
 
 
 int deleteFile(const char *filepath, const char *endDate, const char *endTime, int iOption, int rOption) {
 	char relatedFilepath[BUF_LEN];
+	char buffer[BUF_LEN];
+	struct deletion_node *node;
+	struct tm tm;
 
 	if (filepath == NULL || strlen(filepath) == 0) {
-		sprintf(errorString, "<filename> is empty");
+		fprintf(stderr, "<filename> is empty");
 		return -1;
 	}
 
 	sprintf(relatedFilepath, "%s/%s", BASE_DIR, filepath);
 
 	if (access(relatedFilepath, F_OK) < 0) {
-		sprintf(errorString, "%s does not exist", relatedFilepath);
+		fprintf(stderr, "%s does not exist", relatedFilepath);
 		return -1;
 	}
 
 	// trash 파일이 있는지 검사하여 없으면 생성
 	if (!iOption) {
 		if (access(TRASH, F_OK) != 0) {
-			printf("trash 디렉토리가 없습니다. 생성하겠습니다...\n");
 			mkdir(TRASH, 0777);
 			mkdir(TRASH_INFO, 0777);
 			mkdir(TRASH_FILES, 0777);
@@ -67,7 +176,15 @@ int deleteFile(const char *filepath, const char *endDate, const char *endTime, i
 	}
 
 	// 지정된 시간에 삭제
-	
+	sprintf(buffer, "%s %s", endDate, endTime);
+	strptime(buffer, TIME_FORMAT, &tm);
+	node = malloc(sizeof(struct deletion_node));
+	strcpy(node->filepath, realpath(relatedFilepath, buffer));
+	node->iOption = iOption;
+	node->rOption = rOption;
+	node->endTime = mktime(&tm);
+	insertDeletionNode(node);
+	return 0;
 }
 
 int sendToTrash(const char *filepath) {
@@ -90,12 +207,12 @@ int sendToTrash(const char *filepath) {
 
 	sprintf(buffer, "%s/%s/%s", cwd, TRASH_INFO, filename);
 	if ((fp = fopen(buffer, "a")) == NULL) {
-		sprintf(errorString, "%s open error", buffer);
+		fprintf(stderr, "%s open error", buffer);
 		return -1;
 	}
 
 	if (stat(buffer, &statbuf) < 0) {
-		sprintf(errorString, "%s stat error", buffer);
+		fprintf(stderr, "%s stat error", buffer);
 		return -1;
 	}
 

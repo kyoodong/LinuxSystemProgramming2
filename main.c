@@ -8,7 +8,7 @@
 int main() {
 	init();
 	int isEnd = 0;
-	//freopen("input.txt", "r", stdin);
+	freopen("input.txt", "r", stdin);
 
 	while (1) {
 		isEnd = printPrompt();

@@ -46,20 +46,20 @@ int processCommand(char *commandStr) {
 		processDelete(commandStr + strlen(command) + 1);
 	}
 	else if (!strcmp(command, SIZE)) {
-		printf("Size\n");
+		processSize(commandStr = strlen(command) + 1);
 	}
 	else if (!strcmp(command, RECOVER)) {
-		printf("Recover\n");
+		processRecover(commandStr = strlen(command) + 1);
 	}
 	else if (!strcmp(command, TREE)) {
-		printf("Tree\n");
+		processTree(commandStr = strlen(command) + 1);
 	}
 	else if (!strcmp(command, EXIT)) {
-		printf("Exit\n");
+		processExit();
 		return 1;
 	}
 	else {
-		printf("Help\n");
+		processHelp();
 	}
 
 	return 0;
@@ -147,4 +147,72 @@ int getArg(char* paramStr, char *argv[10]) {
 			paramStr++;
 	}
 	return count;
+}
+
+void processSize(char *paramStr) {
+	char *filename;
+	char *argv[10];
+	int argc = getArg(paramStr, argv);
+	int option;
+
+	if (argc == 0) {
+		fprintf(stderr, "usage: size <filename> <option>\n>");
+		return;
+	}
+
+	filename = argv[0];
+
+	while ((option = getopt(argc, argv, "d")) != -1) {
+		switch (option) {
+			case 'd':
+				printf("d option\n");
+				break;
+
+			case '?':
+				break;
+		}
+	}
+
+	for (int i = 0; i < argc; i++) {
+		free(argv[i]);
+	}
+	optind = 0;
+}
+
+void processRecover(char *paramStr) {
+	char *filename;
+	char *argv[10];
+	int argc = getArg(paramStr, argv);
+	int option;
+
+	if (argc == 0) {
+		fprintf(stderr, "usage: recover <filename> <option>\n>");
+		return;
+	}
+
+	filename = argv[0];
+
+	while ((option = getopt(argc, argv, "l")) != -1) {
+		switch (option) {
+			case 'l':
+				printf("l option\n");
+				break;
+
+			case '?':
+				break;
+	}
+
+	for (int i = 0; i < argc; i++) {
+		free(argv[i]);
+	}
+	optind = 0;
+}
+
+void processTree(char *paramStr) {
+}
+
+void processExit() {
+}
+
+void processHelp() {
 }

@@ -17,5 +17,10 @@ int printPrompt();
 int processCommand(char *commandStr);
 void processDelete(char *paramStr);
 int getArg(char* paramStr, char *argv[10]);
+void processSize(char *paramStr);
+void processRecover(char *paramStr);
+void processTree(char *paramStr);
+void processExit();
+void processHelp();
 
 #endif

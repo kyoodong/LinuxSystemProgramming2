@@ -1,2 +1,5 @@
 ssu_mntr
 *.o
+trash/
+dir/
+/trash

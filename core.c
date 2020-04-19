@@ -45,6 +45,16 @@ int deleteFile(const char *filepath, const char *endDate, const char *endTime, i
 
 	// 즉시 삭제
 	if (endDate == NULL || endTime == NULL || strlen(endDate) == 0 || strlen(endTime) == 0) {
+		// 지정한 시간에 삭제 시 삭제 여부 재확인이
+		// 그 시간이 되면 물어보라는건가?
+		if (rOption) {
+			printf("Delete [y/n]? ");
+			char c = getchar();
+
+			if (c == 'n')
+				return 0;
+		}
+
 		if (iOption) {
 			remove(relatedFilepath);
 		} else {
@@ -59,9 +69,12 @@ int sendToTrash(const char *filepath) {
 	char *p;
 	const char *filename;
 	char buffer[BUF_LEN];
+	char buffer2[BUF_LEN];
 	FILE *fp;
 	struct stat statbuf;
 	time_t t;
+	struct tm *timeinfo;
+	ssize_t size;
 
 	// 파일명
 	filename = strrchr(filepath, '/');
@@ -70,9 +83,8 @@ int sendToTrash(const char *filepath) {
 	else
 		filename++;
 
-	// @TODO: 로그 파일 중에 파일 명이 같은게 있으면?
 	sprintf(buffer, "%s/%s/%s", cwd, TRASH_INFO, filename);
-	if ((fp = fopen(buffer, "w")) == NULL) {
+	if ((fp = fopen(buffer, "a")) == NULL) {
 		sprintf(errorString, "%s open error", buffer);
 		return -1;
 	}
@@ -82,15 +94,27 @@ int sendToTrash(const char *filepath) {
 		return -1;
 	}
 
-	fprintf(fp, "[Trash info]\n");
+	fseek(fp, 0, SEEK_END);
+	size = ftell(fp);
+	if (size == 0) {
+		fprintf(fp, "[Trash info]\n");
+	}
+
+	// buffer 에 휴지통 파일 path 기록
 	fprintf(fp, "%s\n", realpath(filepath, buffer));
+	sprintf(buffer, "%s/%s/%s", cwd, TRASH_FILES, filename);
 
 	t = time(NULL);
-	fprintf(fp, "D : %s", ctime(&t));
-	fprintf(fp, "M : %s", ctime(&statbuf.st_mtime));
+	timeinfo = localtime(&t);
+	strftime(buffer2, sizeof(buffer2), TIME_FORMAT, timeinfo);
+	fprintf(fp, "D : %s\n", buffer2);
+	strcat(buffer, buffer2);
+
+	timeinfo = localtime(&statbuf.st_mtime);
+	strftime(buffer2, sizeof(buffer2), TIME_FORMAT, timeinfo);
+	fprintf(fp, "M : %s\n", buffer2);
 
 	// 파일을 휴지통으로 이동
-	sprintf(buffer, "%s/%s/%s", cwd, TRASH_FILES, filename);
 	rename(filepath, buffer);
 
 	fflush(fp);

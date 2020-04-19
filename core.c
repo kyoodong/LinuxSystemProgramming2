@@ -62,7 +62,12 @@ int deleteFile(const char *filepath, const char *endDate, const char *endTime, i
 				return -1;
 			}
 		}
+
+		return 0;
 	}
+
+	// 지정된 시간에 삭제
+	
 }
 
 int sendToTrash(const char *filepath) {
@@ -121,8 +126,4 @@ int sendToTrash(const char *filepath) {
 	fclose(fp);
 
 	return 0;
-}
-
-int writeLog(const char* filepath) {
-
 }

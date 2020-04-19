@@ -5,6 +5,7 @@
 #include "prompt.h"
 #include "core.h"
 
+extern char errorString[BUF_LEN];
 char command[10];
 char promptBuffer[BUF_LEN];
 
@@ -25,7 +26,9 @@ int printPrompt() {
 	printf("%s> ", STUDENT_ID);
 	fgets(promptBuffer, sizeof(promptBuffer), stdin);
 	promptBuffer[strlen(promptBuffer) - 1] = '\0';
-	processCommand(promptBuffer);
+	if (processCommand(promptBuffer) < 0) {
+		fprintf(stderr, "%s\n", errorString);
+	}
 }
 
 /**
@@ -47,13 +50,13 @@ int processCommand(char *commandStr) {
 		processDelete(commandStr + strlen(command) + 1);
 	}
 	else if (!strcmp(command, SIZE)) {
-		processSize(commandStr = strlen(command) + 1);
+		processSize(commandStr + strlen(command) + 1);
 	}
 	else if (!strcmp(command, RECOVER)) {
-		processRecover(commandStr = strlen(command) + 1);
+		processRecover(commandStr + strlen(command) + 1);
 	}
 	else if (!strcmp(command, TREE)) {
-		processTree(commandStr = strlen(command) + 1);
+		processTree(commandStr + strlen(command) + 1);
 	}
 	else if (!strcmp(command, EXIT)) {
 		processExit();
@@ -84,10 +87,6 @@ void processDelete(char *paramStr) {
 
 	// 입력한 파일을 열 수 있는지 확인
 	filename = argv[0];
-	if (access(filename, R_OK) < 0) {
-		printf("Cannot open %s\n", filename);
-		return;
-	}
 
 	// endDate 가 정상적으로 입력된 경우
 	if (argc >= 3 && argv[1][0] != '-' && argv[2][0] != '-') {
@@ -115,6 +114,9 @@ void processDelete(char *paramStr) {
 	}
 
 	// delete 처리 로직
+	if (deleteFile(filename, endDate, endTime, iOption, rOption) < 0) {
+		fprintf(stderr, "%s\n", errorString);
+	}
 
 	for (int i = 0; i < argc; i++) {
 		free(argv[i]);

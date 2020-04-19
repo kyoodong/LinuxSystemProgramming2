@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <string.h>
 #include "prompt.h"
+#include "core.h"
 
 char command[10];
 char promptBuffer[BUF_LEN];
@@ -200,6 +201,7 @@ void processRecover(char *paramStr) {
 
 			case '?':
 				break;
+		}
 	}
 
 	for (int i = 0; i < argc; i++) {

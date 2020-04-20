@@ -205,6 +205,7 @@ int __deleteFile(const char *filepath, const char *endDate, const char *endTime,
 			remove(filepath);
 		} else {
 			if (sendToTrash(filepath) < 0) {
+				fprintf(stderr, "%s send to trash error\n", filepath);
 				return -1;
 			}
 		}
@@ -250,10 +251,12 @@ int deleteFile(const char *filepath, const char *endDate, const char *endTime, i
 
 	status = __deleteFile(filepath, endDate, endTime, iOption, rOption);
 	if (status <= 0) {
+		if (status < 0)
+			fprintf(stderr, "%s delete file error\n", filepath);
 		for (int i = 0; i < count; i++)
 			free(dirList[i]);
 		free(dirList);
-		return -1;
+		return status;
 	}
 
 	for (int i = 0; i < count; i++) {

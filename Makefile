@@ -26,6 +26,7 @@ clear:
 	rm -f *.o ssu_mntr
 
 test:
+	rm -rf dir
 	mkdir -p dir
 	touch dir/1.c
 	echo 1.c > dir/1.c

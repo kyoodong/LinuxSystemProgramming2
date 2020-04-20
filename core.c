@@ -77,8 +77,8 @@ void* deleteThread() {
 void removeInfoNode(struct info_node *node) {
 	// 루트
 	if (node->prev == NULL) {
+		infoList = node->next;
 		free(node);
-		infoList = NULL;
 		return;
 	}
 
@@ -101,21 +101,23 @@ void clearInfoList() {
 }
 
 void insertInfoNode(struct info_node *node) {
-	struct info_node *tmp, *prev;
-
 	if (infoList == NULL) {
 		node->prev = NULL;
 		node->next = NULL;
 		infoList = node;
 		return;
 	}
+
+	node->next = infoList;
+	infoList->prev = node;
+	infoList = node;
 }
 
 void removeDeletionNode(struct deletion_node *node) {
 	// 루트
 	if (node->prev == NULL) {
+		deletionList = node->next;
 		free(node);
-		deletionList = NULL;
 		return;
 	}
 
@@ -178,16 +180,55 @@ int filterOnlyDirectory(const struct dirent *info) {
 }
 
 
-int deleteFile(const char *filepath, const char *endDate, const char *endTime, int iOption, int rOption) {
-	char relatedFilepath[BUF_LEN];
+int __deleteFile(const char *filepath, const char *endDate, const char *endTime, int iOption, int rOption) {
 	char buffer[BUF_LEN];
 	struct deletion_node *node;
 	struct tm tm;
+
+	// 파일이 해당 서브디렉토리에 없으면 건너뜀
+	if (access(filepath, F_OK) != 0)
+		return 1;
+
+	// 즉시 삭제
+	if (endDate == NULL || endTime == NULL || strlen(endDate) == 0 || strlen(endTime) == 0) {
+		if (rOption) {
+			printf("Delete [y/n]? ");
+			char c = getchar();
+
+			if (c == 'n')
+				return 0;
+		}
+
+		if (iOption) {
+			remove(filepath);
+		} else {
+			if (sendToTrash(filepath) < 0) {
+				return -1;
+			}
+		}
+		return 0;
+	}
+
+	// 지정된 시간에 삭제
+	sprintf(buffer, "%s %s", endDate, endTime);
+	strptime(buffer, TIME_FORMAT, &tm);
+	node = malloc(sizeof(struct deletion_node));
+	strcpy(node->filepath, realpath(filepath, buffer));
+	node->iOption = iOption;
+	node->rOption = rOption;
+	node->endTime = mktime(&tm);
+	insertDeletionNode(node);
+	return 0;
+}
+
+int deleteFile(const char *filepath, const char *endDate, const char *endTime, int iOption, int rOption) {
+	char relatedFilepath[BUF_LEN];
 	struct dirent **dirList;
 	int count;
+	int status;
 
 	if (filepath == NULL || strlen(filepath) == 0) {
-		fprintf(stderr, "<filename> is empty");
+		fprintf(stderr, "<filename> is empty\n");
 		return -1;
 	}
 
@@ -205,52 +246,22 @@ int deleteFile(const char *filepath, const char *endDate, const char *endTime, i
 		}
 	}
 
+	status = __deleteFile(filepath, endDate, endTime, iOption, rOption);
+	if (status <= 0) {
+		for (int i = 0; i < count; i++)
+			free(dirList[i]);
+		free(dirList);
+		return -1;
+	}
+
 	for (int i = 0; i < count; i++) {
 		sprintf(relatedFilepath, "%s/%s", dirList[i]->d_name, filepath);
 
-		// 파일이 해당 서브디렉토리에 없으면 건너뜀
-		if (access(relatedFilepath, F_OK) != 0)
+		if (__deleteFile(relatedFilepath, endDate, endTime, iOption, rOption) == 1)
 			continue;
-
-		// 즉시 삭제
-		if (endDate == NULL || endTime == NULL || strlen(endDate) == 0 || strlen(endTime) == 0) {
-			if (rOption) {
-				printf("Delete [y/n]? ");
-				char c = getchar();
-	
-				if (c == 'n')
-					return 0;
-			}
-
-			if (iOption) {
-				remove(relatedFilepath);
-			} else {
-				if (sendToTrash(relatedFilepath) < 0) {
-					for (int j = 0; j < count; j++)
-						free(dirList[i]);
-					free(dirList);
-					return -1;
-				}
-			}
-	
-			for (int j = 0; j < count; j++)
-				free(dirList[j]);
-			free(dirList);
-			return 0;
-		}
-
-		// 지정된 시간에 삭제
-		sprintf(buffer, "%s %s", endDate, endTime);
-		strptime(buffer, TIME_FORMAT, &tm);
-		node = malloc(sizeof(struct deletion_node));
-		strcpy(node->filepath, realpath(relatedFilepath, buffer));
-		node->iOption = iOption;
-		node->rOption = rOption;
-		node->endTime = mktime(&tm);
-		insertDeletionNode(node);
 	
 		for (int j = 0; j < count; j++)
-			free(dirList[i]);
+			free(dirList[j]);
 		free(dirList);
 		return 0;
 	}
@@ -396,7 +407,7 @@ int recoverFile(const char *filepath, int lOption) {
 
 	sprintf(buf, "%s/%s/%s", cwd, TRASH_INFO, filename);
 	if (access(buf, F_OK) != 0) {
-		fprintf(stderr, "There is no '%s' in '%s' directory", filepath, TRASH);
+		fprintf(stderr, "There is no '%s' in '%s' directory\n", filepath, TRASH);
 		return -1;
 	}
 
@@ -428,6 +439,7 @@ int recoverFile(const char *filepath, int lOption) {
 		// 수정 시간
 		fgets(buf, sizeof(buf), fp);
 		buf[strlen(buf) - 1] = '\0';
+		strcpy(infoNode->modificationTime, buf + 4);
 
 		insertInfoNode(infoNode);
 		count++;
@@ -456,6 +468,7 @@ int recoverFile(const char *filepath, int lOption) {
 		infoNode = infoList;
 	}
 
+
 	sprintf(buf, "%s%s", filename, infoNode->deletionTime);
 	*strrchr(infoNode->filepath, '/') = '\0';
 	sprintf(path, "%s/%s/", cwd, TRASH_FILES);
@@ -476,10 +489,9 @@ int recoverFile(const char *filepath, int lOption) {
 		}
 	}
 
-	printf("%s\n", path);
-
 	// 파일 실제 복구
 	rename(path, buf);
+	removeInfoNode(infoNode);
 
 	// info 파일 수정
 	count--;

@@ -14,6 +14,8 @@
 char cwd[BUF_LEN];
 struct deletion_node *deletionList;
 struct info_node *infoList;
+char termbuf[BUF_LEN][BUF_LEN];
+int termWidth, termHeight;
 
 int init() {
 	char *p;
@@ -516,5 +518,93 @@ int recoverFile(const char *filepath, int lOption) {
 
 	fclose(fp);
 	clearInfoList();
+	return 0;
+}
+
+int filterHiddenFile(const struct dirent *dir) {
+	return dir->d_name[0] != '.';
+}
+
+
+int __printTree(int top, int left, int *bottom, const char *filepath) {
+	struct dirent **fileList;
+	struct stat statbuf;
+	int count;
+	char buf[BUF_LEN];
+	char exp[10];
+	sprintf(exp, "|%%-%ds", TAB_SIZE - 1);
+
+	if ((count = scandir(filepath, &fileList, filterHiddenFile, alphasort)) == 0) {
+		fprintf(stderr, ". open error\n");
+		return -1;
+	}
+
+	for (int i = 0; i < count; i++) {
+		sprintf(buf, "%s/%s", filepath, fileList[i]->d_name);
+		if (stat(buf, &statbuf) < 0) {
+			for (int j = 0; j < count; j++)
+				free(fileList[j]);
+			free(fileList);
+			fprintf(stderr, "%s stat error\n", buf);
+			return -1;
+		}
+
+		if (termWidth < left + strlen(fileList[i]->d_name))
+			termWidth = left + strlen(fileList[i]->d_name);
+
+		sprintf(*(termbuf + *bottom) + left, exp, fileList[i]->d_name);
+		//termbuf[*bottom][left + TAB_SIZE] = ' ';
+
+		if (S_ISDIR(statbuf.st_mode)) {
+			for (int j = strlen(fileList[i]->d_name); j < TAB_SIZE; j++) 
+				termbuf[*bottom][left + j] = '-';
+			
+			__printTree(*bottom, left + TAB_SIZE, bottom, buf);
+		}
+		(*bottom)++;
+		
+		if (termHeight < *bottom)
+			termHeight = *bottom;
+	}
+
+	for (int j = 0; j < count; j++)
+		free(fileList[j]);
+	free(fileList);
+}
+
+int printTree() {
+	struct dirent **dirList;
+	int count;
+	int bottom = 0;
+
+	termWidth = termHeight = 0;
+	for (int i = 0; i < BUF_LEN; i++)
+		for (int j = 0; j < BUF_LEN; j++)
+			termbuf[i][j] = ' ';
+
+	if ((count = scandir(".", &dirList, filterOnlyDirectory, alphasort)) < 0) {
+		fprintf(stderr, "scandir error\n");
+		return -1;
+	}
+
+	for (int i = 0; i < count; i++) {
+		for (int j = 0; dirList[i]->d_name[j] != '\0'; j++)
+			termbuf[bottom][j] = dirList[i]->d_name[j];
+
+			for (int j = strlen(dirList[i]->d_name); j < TAB_SIZE; j++) 
+				termbuf[bottom][j] = '-';
+		__printTree(bottom, TAB_SIZE, &bottom, dirList[i]->d_name);
+	}
+
+	for (int h = 0; h <= termHeight; h++) {
+		for (int w = 0; w <= termWidth; w++) {
+			putchar(termbuf[h][w]);
+		}
+		putchar('\n');
+	}
+
+	for (int i = 0; i < count; i++)
+		free(dirList[i]);
+	free(dirList);
 	return 0;
 }

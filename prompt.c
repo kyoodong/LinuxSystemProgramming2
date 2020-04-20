@@ -229,6 +229,7 @@ void processRecover(char *paramStr) {
 }
 
 void processTree(char *paramStr) {
+	printTree(".");
 }
 
 void processExit() {

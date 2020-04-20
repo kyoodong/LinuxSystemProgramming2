@@ -7,6 +7,7 @@
 #define MAX_TRASH_INFO_SIZE (1024 * 2)
 #define TIME_FORMAT "%Y-%m-%d %H:%M:%S"
 #define DELETE_INTERVAL 10 
+#define TAB_SIZE 16
 
 struct deletion_node {
 	char filepath[BUF_LEN];
@@ -35,4 +36,5 @@ int deleteFile(const char *filepath, const char *endDate, const char *endTime, i
 int printSize(const char *filepath, int dOption);
 int recoverFile(const char *filepath, int lOption);
 void clearInfoList();
+int printTree();
 #endif

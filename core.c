@@ -397,6 +397,20 @@ int printSize(const char *filepath, int dOption) {
 	return 0;
 }
 
+int deleteTimeSort(const struct dirent **left, const struct dirent **right) {
+	time_t leftTime, rightTime;
+	struct tm result;
+
+	const char *leftTimeStr = (*left)->d_name + strlen((*left)->d_name) - TIME_FORMAT_LEN;
+	const char *rightTimeStr = (*right)->d_name + strlen((*right)->d_name) - TIME_FORMAT_LEN;
+	strptime(leftTimeStr, TIME_FORMAT, &result);
+	leftTime = mktime(&result);
+	strptime(rightTimeStr, TIME_FORMAT, &result);
+	rightTime = mktime(&result);
+
+	return leftTime > rightTime;
+}
+
 int recoverFile(const char *filepath, int lOption) {
 	const char *filename;
 	char path[BUF_LEN];
@@ -405,6 +419,7 @@ int recoverFile(const char *filepath, int lOption) {
 	int count, index, num;
 	struct info_node *infoNode;
 	size_t fileSize;
+	struct dirent **fileList;
 
 	filename = strrchr(filepath, '/');
 	if (filename == NULL)
@@ -420,6 +435,31 @@ int recoverFile(const char *filepath, int lOption) {
 		fprintf(stderr, "%s fopen error\n", buf);
 		return -1;
 	}
+
+	if (lOption) {
+		sprintf(buf, "%s/%s", cwd, TRASH_FILES);
+		if ((count = scandir(buf, &fileList, filterHiddenFile, deleteTimeSort)) < 0) {
+			fprintf(stderr, "scandir error\n");
+			return -1;
+		}
+
+		printf("Old trash files\n");
+		for (int i = 0; i < count; i++) {
+			char deleteTime[TIME_FORMAT_LEN + 10];
+			strcpy(buf, fileList[i]->d_name);
+			strcpy(deleteTime, fileList[i]->d_name + strlen(fileList[i]->d_name) - TIME_FORMAT_LEN);
+			buf[strlen(buf) - TIME_FORMAT_LEN] = '\0';
+
+			printf("%d. %s\t\t%s\n", i + 1, buf, deleteTime);
+		}
+		printf("\n\n");
+
+		for (int i = 0; i < count; i++) {
+			free(fileList[i]);
+		}
+		free(fileList);
+	}
+
 
 	fseek(fp, 0, SEEK_END);
 	fileSize = ftell(fp);
@@ -451,6 +491,7 @@ int recoverFile(const char *filepath, int lOption) {
 	}
 
 	if (count > 1) {
+		printf("There are multiple <%s> Choose one of them.\n", filename);
 		index = 0;
 		infoNode = infoList;
 		while (infoNode != NULL) {

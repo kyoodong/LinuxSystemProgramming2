@@ -1,11 +1,13 @@
 #ifndef H_CORE
 #define H_CORE 1
+#include <dirent.h>
 
 #define TRASH "trash"
 #define TRASH_FILES "trash/files"
 #define TRASH_INFO "trash/info"
 #define MAX_TRASH_INFO_SIZE (1024 * 2)
 #define TIME_FORMAT "%Y-%m-%d %H:%M:%S"
+#define TIME_FORMAT_LEN 19
 #define DELETE_INTERVAL 10 
 #define TAB_SIZE 16
 
@@ -37,4 +39,5 @@ int printSize(const char *filepath, int dOption);
 int recoverFile(const char *filepath, int lOption);
 void clearInfoList();
 int printTree();
+int filterHiddenFile(const struct dirent *dir); 
 #endif

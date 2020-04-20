@@ -1,1 +1,1 @@
-size dir
+size dir -d 4 

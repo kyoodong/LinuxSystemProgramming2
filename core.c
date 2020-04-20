@@ -132,7 +132,7 @@ int filterOnlyDirectory(const struct dirent *info) {
 		return 0;
 
 	if (stat(info->d_name, &statbuf) < 0) {
-		fprintf(stderr, "stat error\n");
+		fprintf(stderr, "%s stat error\n", info->d_name);
 		return 0;
 	}
 
@@ -219,7 +219,7 @@ int deleteFile(const char *filepath, const char *endDate, const char *endTime, i
 	}
 
 	fprintf(stderr, "%s doesn't exist\n", filepath);
-	for (int j = 0; j < count; j++)
+	for (int i = 0; i < count; i++)
 		free(dirList[i]);
 	free(dirList);
 	return -1;
@@ -283,14 +283,63 @@ int sendToTrash(const char *filepath) {
 	return 0;
 }
 
+int __printSize(const char *filepath, int curDepth, int depth) {
+	char buf[BUF_LEN];
+	struct dirent **dirList;
+	struct stat statbuf;
+	int count;
+
+	if (curDepth == depth)
+		return 0;
+
+	if ((count = scandir(filepath, &dirList, NULL, alphasort)) < 0) {
+		fprintf(stderr, "%s scandir error\n", filepath);
+		return -1;
+	}
+
+	for (int i = 0; i < count; i++) {
+		if (dirList[i]->d_name[0] == '.')
+			continue;
+
+		sprintf(buf, "%s/%s", filepath, dirList[i]->d_name);
+		if (stat(buf, &statbuf) < 0) {
+			fprintf(stderr, "%s stat error\n", buf);
+			return -1;
+		}
+
+		if (S_ISDIR(statbuf.st_mode) && curDepth + 1 < depth) {
+			if (__printSize(buf, curDepth + 1, depth) < 0) {
+				return -1;
+			}
+		}
+		else
+			printf("%ld\t%s\n", statbuf.st_size, buf);
+	}
+
+	for (int i = 0; i < count; i++)
+		free(dirList[i]);
+	free(dirList);
+}
+
 int printSize(const char *filepath, int dOption) {
 	struct stat statbuf;
+	char buf[BUF_LEN];
 
 	if (stat(filepath, &statbuf) < 0) {
 		fprintf(stderr, "%s stat error\n", filepath);
 		return -1;
 	}
 
-	printf("%ld\t%s\n", statbuf.st_size, filepath);
+	if (filepath[0] == '.') {
+		strcpy(buf, filepath);
+	}
+	else {
+		sprintf(buf, "./%s", filepath);
+	}
+
+	if (dOption <= 1)
+		printf("%ld\t%s\n", statbuf.st_size, buf);
+	else
+		__printSize(buf, 0, dOption - 1);
 	return 0;
 }

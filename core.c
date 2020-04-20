@@ -457,6 +457,7 @@ int recoverFile(const char *filepath, int lOption) {
 		}
 		printf("Choose : ");
 		scanf("%d", &num);
+		getchar();
 		if (num > count) {
 			fprintf(stderr, "There are %d %s in %s.\n", count, filename, TRASH);
 			clearInfoList();
@@ -469,7 +470,6 @@ int recoverFile(const char *filepath, int lOption) {
 	} else {
 		infoNode = infoList;
 	}
-
 
 	sprintf(buf, "%s%s", filename, infoNode->deletionTime);
 	*strrchr(infoNode->filepath, '/') = '\0';
@@ -511,7 +511,6 @@ int recoverFile(const char *filepath, int lOption) {
 		infoNode = infoList;
 		while (infoNode != NULL) {
 			fprintf(fp, "%s\nD : %s\nM : %s\n", infoNode->filepath, infoNode->deletionTime, infoNode->modificationTime);
-			printf("%s\nD : %s\nM : %s\n", infoNode->filepath, infoNode->deletionTime, infoNode->modificationTime);
 			infoNode = infoNode->next;
 		}
 	}

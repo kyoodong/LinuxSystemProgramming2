@@ -31,8 +31,9 @@ int printPrompt() {
 		promptBuffer[index++] = c;
 	}
 
+	// @TODO: 디버깅용
 	if (index == 0) {
-		sleep(1000);
+		sleep(10);
 	}
 	promptBuffer[index] = '\0';
 	if (processCommand(promptBuffer) < 0) {
@@ -160,28 +161,32 @@ int getArg(char* paramStr, char *argv[10]) {
 }
 
 void processSize(char *paramStr) {
-	char *filename;
+	char *filepath;
 	char *argv[10];
 	int argc = getArg(paramStr, argv);
 	int option;
+	int dOption = 0;
 
 	if (argc == 0) {
 		fprintf(stderr, "usage: size <filename> <option>\n>");
 		return;
 	}
 
-	filename = argv[0];
+	filepath = argv[0];
 
 	while ((option = getopt(argc, argv, "d")) != -1) {
 		switch (option) {
 			case 'd':
-				printf("d option\n");
+				dOption = 1;
 				break;
 
 			case '?':
 				break;
 		}
 	}
+
+	// 사이즈 출력
+	printSize(filepath, dOption);
 
 	for (int i = 0; i < argc; i++) {
 		free(argv[i]);

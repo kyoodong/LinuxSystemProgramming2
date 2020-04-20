@@ -26,4 +26,5 @@ int deleteFile(const char *filename, const char *endDate, const char *endTime, i
 int init();
 int sendToTrash(const char *filepath);
 int deleteFile(const char *filepath, const char *endDate, const char *endTime, int iOption, int rOption);
+int printSize(const char *filepath, int dOption);
 #endif

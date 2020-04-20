@@ -244,3 +244,15 @@ int sendToTrash(const char *filepath) {
 
 	return 0;
 }
+
+int printSize(const char *filepath, int dOption) {
+	struct stat statbuf;
+
+	if (stat(filepath, &statbuf) < 0) {
+		fprintf(stderr, "%s stat error\n", filepath);
+		return -1;
+	}
+
+	printf("%ld\t%s\n", statbuf.st_size, filepath);
+	return 0;
+}

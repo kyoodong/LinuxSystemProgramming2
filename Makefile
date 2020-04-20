@@ -24,6 +24,7 @@ test:
 	mkdir -p dir/dir1
 	touch dir/dir1/1.c
 	touch dir/dir1/2.c
+	cp -r dir cdir
 
 show:
 	echo "<< trash file list >>"

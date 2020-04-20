@@ -5,6 +5,7 @@
 #include <string.h>
 #include <time.h>
 #include <pthread.h>
+#include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include "prompt.h"
@@ -124,22 +125,36 @@ void insertDeletionNode(struct deletion_node *node) {
 		node->next->prev = node;
 }
 
+int filterOnlyDirectory(const struct dirent *info) {
+	struct stat statbuf;
+
+	if (info->d_name[0] == '.' || !strcmp(info->d_name, TRASH))
+		return 0;
+
+	if (stat(info->d_name, &statbuf) < 0) {
+		fprintf(stderr, "stat error\n");
+		return 0;
+	}
+
+	return S_ISDIR(statbuf.st_mode);
+}
+
 
 int deleteFile(const char *filepath, const char *endDate, const char *endTime, int iOption, int rOption) {
 	char relatedFilepath[BUF_LEN];
 	char buffer[BUF_LEN];
 	struct deletion_node *node;
 	struct tm tm;
+	struct dirent **dirList;
+	int count;
 
 	if (filepath == NULL || strlen(filepath) == 0) {
 		fprintf(stderr, "<filename> is empty");
 		return -1;
 	}
 
-	sprintf(relatedFilepath, "%s/%s", BASE_DIR, filepath);
-
-	if (access(relatedFilepath, F_OK) < 0) {
-		fprintf(stderr, "%s does not exist", relatedFilepath);
+	if ((count = scandir(cwd, &dirList, filterOnlyDirectory, NULL)) < 0) {
+		fprintf(stderr, "scandir error\n");
 		return -1;
 	}
 
@@ -152,39 +167,50 @@ int deleteFile(const char *filepath, const char *endDate, const char *endTime, i
 		}
 	}
 
-	// 즉시 삭제
-	if (endDate == NULL || endTime == NULL || strlen(endDate) == 0 || strlen(endTime) == 0) {
-		// 지정한 시간에 삭제 시 삭제 여부 재확인이
-		// 그 시간이 되면 물어보라는건가?
-		if (rOption) {
-			printf("Delete [y/n]? ");
-			char c = getchar();
+	for (int i = 0; i < count; i++) {
+		sprintf(relatedFilepath, "%s/%s", dirList[i]->d_name, filepath);
 
-			if (c == 'n')
-				return 0;
-		}
+		if (access(relatedFilepath, F_OK) < 0)
+			continue;
 
-		if (iOption) {
-			remove(relatedFilepath);
-		} else {
-			if (sendToTrash(relatedFilepath) < 0) {
-				return -1;
+		// 즉시 삭제
+		if (endDate == NULL || endTime == NULL || strlen(endDate) == 0 || strlen(endTime) == 0) {
+			// 지정한 시간에 삭제 시 삭제 여부 재확인이
+			// 그 시간이 되면 물어보라는건가?
+			if (rOption) {
+				printf("Delete [y/n]? ");
+				char c = getchar();
+	
+				if (c == 'n')
+					return 0;
 			}
+
+			if (iOption) {
+				remove(relatedFilepath);
+			} else {
+				if (sendToTrash(relatedFilepath) < 0) {
+					return -1;
+				}
+			}
+	
+			return 0;
 		}
+
+		// 지정된 시간에 삭제
+		sprintf(buffer, "%s %s", endDate, endTime);
+		strptime(buffer, TIME_FORMAT, &tm);
+		node = malloc(sizeof(struct deletion_node));
+		strcpy(node->filepath, realpath(relatedFilepath, buffer));
+		node->iOption = iOption;
+		node->rOption = rOption;
+		node->endTime = mktime(&tm);
+		insertDeletionNode(node);
 
 		return 0;
 	}
 
-	// 지정된 시간에 삭제
-	sprintf(buffer, "%s %s", endDate, endTime);
-	strptime(buffer, TIME_FORMAT, &tm);
-	node = malloc(sizeof(struct deletion_node));
-	strcpy(node->filepath, realpath(relatedFilepath, buffer));
-	node->iOption = iOption;
-	node->rOption = rOption;
-	node->endTime = mktime(&tm);
-	insertDeletionNode(node);
-	return 0;
+	fprintf(stderr, "%s doesn't exist\n", filepath);
+	return -1;
 }
 
 int sendToTrash(const char *filepath) {

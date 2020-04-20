@@ -4,7 +4,6 @@
 #define TRASH "trash"
 #define TRASH_FILES "trash/files"
 #define TRASH_INFO "trash/info"
-#define BASE_DIR "dir"
 #define MAX_TRASH_INFO_SIZE (1024 * 2)
 #define TIME_FORMAT "%Y-%m-%d %H:%M:%S"
 #define DELETE_INTERVAL 10 

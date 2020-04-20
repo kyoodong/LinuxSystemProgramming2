@@ -12,7 +12,8 @@
 #include "core.h"
 
 char cwd[BUF_LEN];
-struct deletion_node *deletion_list;
+struct deletion_node *deletionList;
+struct info_node *infoList;
 
 int init() {
 	char *p;
@@ -34,7 +35,7 @@ void* deleteThread() {
 	struct deletion_node *node, *tmp;
 	time_t curTime;
 	while (1) {
-		node = deletion_list;
+		node = deletionList;
 		curTime = time(NULL);
 		while (node != NULL) {
 			// 삭제해야하는 파일 발견 시
@@ -73,11 +74,48 @@ void* deleteThread() {
 	}
 }
 
+void removeInfoNode(struct info_node *node) {
+	// 루트
+	if (node->prev == NULL) {
+		free(node);
+		infoList = NULL;
+		return;
+	}
+
+	node->prev->next = node->next;
+
+	if (node->next != NULL) {
+		node->next->prev = node->prev;
+	}
+	free(node);
+}
+
+void clearInfoList() {
+	struct info_node *next;
+	while (infoList != NULL) {
+		next = infoList->next;
+		free(infoList);
+		infoList = next;
+	}
+	infoList = NULL;
+}
+
+void insertInfoNode(struct info_node *node) {
+	struct info_node *tmp, *prev;
+
+	if (infoList == NULL) {
+		node->prev = NULL;
+		node->next = NULL;
+		infoList = node;
+		return;
+	}
+}
+
 void removeDeletionNode(struct deletion_node *node) {
 	// 루트
 	if (node->prev == NULL) {
 		free(node);
-		deletion_list = NULL;
+		deletionList = NULL;
 		return;
 	}
 
@@ -92,14 +130,14 @@ void removeDeletionNode(struct deletion_node *node) {
 void insertDeletionNode(struct deletion_node *node) {
 	struct deletion_node *tmp, *prev;
 
-	if (deletion_list == NULL) {
+	if (deletionList == NULL) {
 		node->prev = NULL;
 		node->next = NULL;
-		deletion_list = node;
+		deletionList = node;
 		return;
 	}
 
-	tmp = deletion_list;
+	tmp = deletionList;
 	prev = NULL;
 	while (tmp->endTime < node->endTime) {
 		prev = tmp;
@@ -111,9 +149,9 @@ void insertDeletionNode(struct deletion_node *node) {
 
 	// 맨 앞에 추가되어야 하는 경우
 	if (prev == NULL) {
-		node->next = deletion_list;
-		deletion_list->prev = node;
-		deletion_list = node;
+		node->next = deletionList;
+		deletionList->prev = node;
+		deletionList = node;
 		return;
 	}
 
@@ -170,13 +208,12 @@ int deleteFile(const char *filepath, const char *endDate, const char *endTime, i
 	for (int i = 0; i < count; i++) {
 		sprintf(relatedFilepath, "%s/%s", dirList[i]->d_name, filepath);
 
-		if (access(relatedFilepath, F_OK) < 0)
+		// 파일이 해당 서브디렉토리에 없으면 건너뜀
+		if (access(relatedFilepath, F_OK) != 0)
 			continue;
 
 		// 즉시 삭제
 		if (endDate == NULL || endTime == NULL || strlen(endDate) == 0 || strlen(endTime) == 0) {
-			// 지정한 시간에 삭제 시 삭제 여부 재확인이
-			// 그 시간이 되면 물어보라는건가?
 			if (rOption) {
 				printf("Delete [y/n]? ");
 				char c = getchar();
@@ -197,7 +234,7 @@ int deleteFile(const char *filepath, const char *endDate, const char *endTime, i
 			}
 	
 			for (int j = 0; j < count; j++)
-				free(dirList[i]);
+				free(dirList[j]);
 			free(dirList);
 			return 0;
 		}
@@ -341,5 +378,131 @@ int printSize(const char *filepath, int dOption) {
 		printf("%ld\t%s\n", statbuf.st_size, buf);
 	else
 		__printSize(buf, 0, dOption - 1);
+	return 0;
+}
+
+int recoverFile(const char *filepath, int lOption) {
+	const char *filename;
+	char path[BUF_LEN];
+	char buf[BUF_LEN];
+	FILE *fp;
+	int count, index, num;
+	struct info_node *infoNode;
+	size_t fileSize;
+
+	filename = strrchr(filepath, '/');
+	if (filename == NULL)
+		filename = filepath;
+
+	sprintf(buf, "%s/%s/%s", cwd, TRASH_INFO, filename);
+	if (access(buf, F_OK) != 0) {
+		fprintf(stderr, "There is no '%s' in '%s' directory", filepath, TRASH);
+		return -1;
+	}
+
+	if ((fp = fopen(buf, "r+")) == NULL) {
+		fprintf(stderr, "%s fopen error\n", buf);
+		return -1;
+	}
+
+	fseek(fp, 0, SEEK_END);
+	fileSize = ftell(fp);
+	count = 0;
+
+	fseek(fp, 0, SEEK_SET);
+	fgets(buf, sizeof(buf), fp);
+
+	while (ftell(fp) < fileSize) {
+		infoNode = calloc(sizeof(struct info_node), 1);
+
+		// 파일명
+		fgets(buf, sizeof(buf), fp);
+		buf[strlen(buf) - 1] = '\0';
+		strcpy(infoNode->filepath, buf);
+
+		// 삭제 시간
+		fgets(buf, sizeof(buf), fp);
+		buf[strlen(buf) - 1] = '\0';
+		strcpy(infoNode->deletionTime, buf + 4);
+
+		// 수정 시간
+		fgets(buf, sizeof(buf), fp);
+		buf[strlen(buf) - 1] = '\0';
+
+		insertInfoNode(infoNode);
+		count++;
+	}
+
+	if (count > 1) {
+		index = 0;
+		infoNode = infoList;
+		while (infoNode != NULL) {
+			index++;
+			printf("%d. %s D : %s M : %s\n", index, filename, infoNode->deletionTime, infoNode->modificationTime);
+			infoNode = infoNode->next;
+		}
+		printf("Choose : ");
+		scanf("%d", &num);
+		if (num > count) {
+			fprintf(stderr, "There are %d %s in %s.\n", count, filename, TRASH);
+			clearInfoList();
+			return -1;
+		}
+
+		infoNode = infoList;
+		for (int i = 1; i < num; i++)
+			infoNode = infoNode->next;
+	} else {
+		infoNode = infoList;
+	}
+
+	sprintf(buf, "%s%s", filename, infoNode->deletionTime);
+	*strrchr(infoNode->filepath, '/') = '\0';
+	sprintf(path, "%s/%s/", cwd, TRASH_FILES);
+	strcat(path, buf);
+	
+	strcpy(buf, infoNode->filepath);
+	strcat(buf, "/");
+	strcat(buf, filename);
+
+	// 복구하고자 하는 파일이 이미 해당 디렉토리에 있는 경우 넘버링
+	if (access(buf, F_OK) == 0) {
+		while (1) {
+			index = 1;
+			strcpy(buf, infoNode->filepath);
+			sprintf(buf + strlen(buf), "/%d_%s", index, filename);
+			if (access(buf, F_OK) != 0)
+				break;
+		}
+	}
+
+	printf("%s\n", path);
+
+	// 파일 실제 복구
+	rename(path, buf);
+
+	// info 파일 수정
+	count--;
+	sprintf(buf, "%s/%s/%s", cwd, TRASH_INFO, filename);
+
+	if (count == 0) {
+		remove(buf);
+	}
+	else {
+		// 파일 내용 다 지우고
+		freopen(buf, "w", fp);
+
+		fprintf(fp, "[Trash info]\n");
+
+		infoNode = infoList;
+		while (infoNode != NULL) {
+			fprintf(fp, "%s\nD : %s\nM : %s\n", infoNode->filepath, infoNode->deletionTime, infoNode->modificationTime);
+			printf("%s\nD : %s\nM : %s\n", infoNode->filepath, infoNode->deletionTime, infoNode->modificationTime);
+			infoNode = infoNode->next;
+		}
+	}
+
+	fclose(fp);
+	clearInfoList();
 	return 0;
 }

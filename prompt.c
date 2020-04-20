@@ -195,28 +195,32 @@ void processSize(char *paramStr) {
 }
 
 void processRecover(char *paramStr) {
-	char *filename;
+	char *filepath;
 	char *argv[10];
 	int argc = getArg(paramStr, argv);
 	int option;
+	int lOption = 0;
 
 	if (argc == 0) {
 		fprintf(stderr, "usage: recover <filename> <option>\n>");
 		return;
 	}
 
-	filename = argv[0];
+	filepath = argv[0];
 
 	while ((option = getopt(argc, argv, "l")) != -1) {
 		switch (option) {
 			case 'l':
-				printf("l option\n");
+				lOption = 1;
 				break;
 
 			case '?':
 				break;
 		}
 	}
+	
+	// 파일 복구
+	recoverFile(filepath, lOption);
 
 	for (int i = 0; i < argc; i++) {
 		free(argv[i]);

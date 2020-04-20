@@ -10,6 +10,18 @@ prompt.o: prompt.c
 core.o: core.c
 	gcc -c core.c -o core.o -lpthread
 
+debug: clear main-debug.o prompt-debug.o core-debug.o test 
+	gcc -g main-debug.o prompt-debug.o core-debug.o -o ssu_mntr_debug -lpthread
+
+main-debug.o: main.c
+	gcc -g -c main.c -o main-debug.o
+
+prompt-debug.o: prompt.c 
+	gcc -g -c prompt.c -o prompt-debug.o
+
+core-debug.o: core.c
+	gcc -g -c core.c -o core-debug.o -lpthread
+
 clear: 
 	rm -f *.o ssu_mntr
 
@@ -24,6 +36,7 @@ test:
 	mkdir -p dir/dir1
 	touch dir/dir1/1.c
 	touch dir/dir1/2.c
+	rm -rf cdir
 	cp -r dir cdir
 
 show:

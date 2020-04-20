@@ -11,7 +11,7 @@ int main() {
 	int isEnd = 0;
 
 	init();
-	freopen("input.txt", "r", stdin);
+	//freopen("input.txt", "r", stdin);
 
 	while (1) {
 		isEnd = printPrompt();

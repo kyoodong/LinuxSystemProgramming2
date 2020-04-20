@@ -16,6 +16,13 @@ struct deletion_node {
 	struct deletion_node *next, *prev;
 };
 
+struct info_node {
+	char filepath[BUF_LEN];
+	char modificationTime[30];
+	char deletionTime[30];
+	struct info_node *next, *prev;
+};
+
 
 void* deleteThread();
 void removeDeletionNode(struct deletion_node *node);
@@ -26,4 +33,6 @@ int init();
 int sendToTrash(const char *filepath);
 int deleteFile(const char *filepath, const char *endDate, const char *endTime, int iOption, int rOption);
 int printSize(const char *filepath, int dOption);
+int recoverFile(const char *filepath, int lOption);
+void clearInfoList();
 #endif

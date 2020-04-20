@@ -174,10 +174,10 @@ void processSize(char *paramStr) {
 
 	filepath = argv[0];
 
-	while ((option = getopt(argc, argv, "d")) != -1) {
+	while ((option = getopt(argc, argv, "d:")) != -1) {
 		switch (option) {
 			case 'd':
-				dOption = 1;
+				dOption = atoi(optarg);
 				break;
 
 			case '?':

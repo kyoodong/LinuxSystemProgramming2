@@ -1,1 +1,1 @@
-delete 1.c 2020-04-19 16:00
+size dir

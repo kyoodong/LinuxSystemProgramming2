@@ -189,10 +189,16 @@ int deleteFile(const char *filepath, const char *endDate, const char *endTime, i
 				remove(relatedFilepath);
 			} else {
 				if (sendToTrash(relatedFilepath) < 0) {
+					for (int j = 0; j < count; j++)
+						free(dirList[i]);
+					free(dirList);
 					return -1;
 				}
 			}
 	
+			for (int j = 0; j < count; j++)
+				free(dirList[i]);
+			free(dirList);
 			return 0;
 		}
 
@@ -205,11 +211,17 @@ int deleteFile(const char *filepath, const char *endDate, const char *endTime, i
 		node->rOption = rOption;
 		node->endTime = mktime(&tm);
 		insertDeletionNode(node);
-
+	
+		for (int j = 0; j < count; j++)
+			free(dirList[i]);
+		free(dirList);
 		return 0;
 	}
 
 	fprintf(stderr, "%s doesn't exist\n", filepath);
+	for (int j = 0; j < count; j++)
+		free(dirList[i]);
+	free(dirList);
 	return -1;
 }
 

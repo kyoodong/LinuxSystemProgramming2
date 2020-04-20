@@ -69,7 +69,6 @@ int processCommand(char *commandStr) {
 		processTree(commandStr + strlen(command) + 1);
 	}
 	else if (!strcmp(command, EXIT)) {
-		processExit();
 		return 1;
 	}
 	else {
@@ -232,8 +231,15 @@ void processTree(char *paramStr) {
 	printTree(".");
 }
 
-void processExit() {
-}
-
 void processHelp() {
+	printf("delete <filename> <endtime> <option>\n");
+	printf("\t-i : delete file directly without backup to trash directory.\n");
+	printf("\t-r : confirm before delete file when reserved endtime.\n");
+	printf("size <filename> <option>\n");
+	printf("\t-d <n> : print sub directory until <n> levels.\n");
+	printf("recover <filename> <option>\n");
+	printf("\t-l : print trash directory list before recover.\n");
+	printf("tree : print directory tree\n");
+	printf("exit : terminate the program\n");
+	printf("help : print usage of the program\n");
 }

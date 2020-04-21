@@ -147,8 +147,8 @@ int getArg(char* paramStr, char *argv[10]) {
 
 	while (*paramStr != '\0' && *paramStr != '\n') {
 		sscanf(paramStr, "%s", buf);
-		length = strlen(buf) + 1;
-		argv[count] = malloc(length);
+		length = strlen(buf);
+		argv[count] = calloc(1, length);
 		strcpy(argv[count], buf);
 		count++;
 		paramStr += length;

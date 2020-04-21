@@ -227,8 +227,9 @@ int __deleteFile(const char *filepath, const char *endDate, const char *endTime,
 
 	// 지정된 시간에 삭제
 	sprintf(buffer, "%s %s", endDate, endTime);
+	strcat(buffer, ":00");
 	strptime(buffer, TIME_FORMAT, &tm);
-	node = malloc(sizeof(struct deletion_node));
+	node = calloc(1, sizeof(struct deletion_node));
 	strcpy(node->filepath, realpath(filepath, buffer));
 	node->iOption = iOption;
 	node->rOption = rOption;
@@ -482,7 +483,7 @@ int recoverFile(const char *filepath, int lOption) {
 	fgets(buf, sizeof(buf), fp);
 
 	while (ftell(fp) < fileSize) {
-		infoNode = calloc(sizeof(struct info_node), 1);
+		infoNode = calloc(1, sizeof(struct info_node));
 
 		// 파일명
 		fgets(buf, sizeof(buf), fp);

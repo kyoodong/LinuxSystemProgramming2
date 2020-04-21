@@ -44,6 +44,14 @@ void* deleteThread() {
 			if (node->endTime <= curTime) {
 				tmp = node;
 
+				printf("%s\ncurTime = %ld\nendTime = %ld\n", node->filepath, curTime, node->endTime);
+				// 이미 삭제된 경우
+				if (access(node->filepath, F_OK) != 0) {
+					node = node->next;
+					removeDeletionNode(tmp);
+					continue;
+				}
+
 				// r 옵션 켜져있었으면 물어보고 삭제
 				if (node->rOption) {
 					printf("Delete [y/n]? ");

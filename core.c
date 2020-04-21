@@ -613,7 +613,7 @@ int __printTree(int top, int left, int *bottom, const char *filepath) {
 		//termbuf[*bottom][left + TAB_SIZE] = ' ';
 
 		if (S_ISDIR(statbuf.st_mode)) {
-			for (int j = strlen(fileList[i]->d_name); j < TAB_SIZE; j++) 
+			for (int j = strlen(fileList[i]->d_name) + 1; j < TAB_SIZE; j++) 
 				termbuf[*bottom][left + j] = '-';
 			
 			__printTree(*bottom, left + TAB_SIZE, bottom, buf);

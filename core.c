@@ -80,6 +80,8 @@ void removeInfoNode(struct info_node *node) {
 	// 루트
 	if (node->prev == NULL) {
 		infoList = node->next;
+		if (infoList != NULL)
+			infoList->prev = NULL;
 		free(node);
 		return;
 	}
@@ -119,6 +121,9 @@ void removeDeletionNode(struct deletion_node *node) {
 	// 루트
 	if (node->prev == NULL) {
 		deletionList = node->next;
+		if (deletionList != NULL)
+			deletionList->prev = NULL;
+
 		free(node);
 		return;
 	}

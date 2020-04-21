@@ -12,6 +12,7 @@ core.o: core.c
 
 debug: clear main-debug.o prompt-debug.o core-debug.o test 
 	gcc -g main-debug.o prompt-debug.o core-debug.o -o ssu_mntr_debug -lpthread
+	gdb ssu_mntr_debug
 
 main-debug.o: main.c
 	gcc -g -c main.c -o main-debug.o

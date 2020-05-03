@@ -418,18 +418,33 @@ int __printSize(const char *filepath, int curDepth, int depth) {
 			return -1;
 		}
 
-		if (S_ISDIR(statbuf.st_mode) && curDepth + 1 < depth) {
-			if (__printSize(buf, curDepth + 1, depth) < 0) {
-				return -1;
+		// 디렉토리인 경우
+		if (S_ISDIR(statbuf.st_mode)) {
+			if (curDepth + 1 < depth) {
+				if ((tmp = __printSize(buf, curDepth + 1, depth)) < 0) {
+					return -1;
+				}
+				size += tmp;
+			} else {
+				if ((tmp = getSize(buf)) < 0) {
+					fprintf(stderr, "%s getSize error\n", buf);
+					return -1;
+				}
+
+				size += tmp;
+				printf("%ld\t%s\n", tmp, buf);
 			}
 		}
-		else
+		else {
 			printf("%ld\t%s\n", statbuf.st_size, buf);
+			size += statbuf.st_size;
+		}
 	}
 
 	for (int i = 0; i < count; i++)
 		free(dirList[i]);
 	free(dirList);
+	return size;
 }
 
 int printSize(const char *filepath, int dOption) {
@@ -448,8 +463,14 @@ int printSize(const char *filepath, int dOption) {
 		sprintf(buf, "./%s", filepath);
 	}
 
-	if (dOption <= 1)
-		printf("%ld\t%s\n", statbuf.st_size, buf);
+	if (dOption <= 1) {
+		long size = getSize(buf);
+		if (size < 0) {
+			fprintf(stderr, "%s getSize error\n", buf);
+			return -1;
+		}
+		printf("%ld\t%s\n", size, buf);
+	}
 	else
 		__printSize(buf, 0, dOption - 1);
 	return 0;

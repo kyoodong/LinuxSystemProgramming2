@@ -40,4 +40,5 @@ int recoverFile(const char *filepath, int lOption);
 void clearInfoList();
 int printTree();
 int filterHiddenFile(const struct dirent *dir); 
+int ignoreParentAndSelfDirFilter(const struct dirent *dir);
 #endif

@@ -6,6 +6,7 @@
 #include <time.h>
 #include <pthread.h>
 #include <dirent.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include "prompt.h"
@@ -183,7 +184,7 @@ void insertDeletionNode(struct deletion_node *node) {
 int filterOnlyDirectory(const struct dirent *info) {
 	struct stat statbuf;
 
-	if (info->d_name[0] == '.' || !strcmp(info->d_name, TRASH))
+	if (!strcmp(info->d_name, ".") || !strcmp(info->d_name, "..") || !strcmp(info->d_name, TRASH) || !strcmp(info->d_name, ".git"))
 		return 0;
 
 	if (stat(info->d_name, &statbuf) < 0) {
@@ -350,18 +351,61 @@ int sendToTrash(const char *filepath) {
 	return 0;
 }
 
+int getSize(const char *dirpath) {
+	char buf[BUF_LEN];
+	struct dirent **dirList = NULL;
+	struct stat statbuf;
+	int size = 0;
+	int count;
+	int tmp;
+
+	if ((count = scandir(dirpath, &dirList, ignoreParentAndSelfDirFilter, NULL)) < 0) {
+		fprintf(stderr, "%s scandir error\n", dirpath);
+		return -1;
+	}
+
+	for (int i = 0; i < count; i++) {
+		sprintf(buf, "%s/%s", dirpath, dirList[i]->d_name);
+		stat(buf, &statbuf);
+
+		if (S_ISDIR(statbuf.st_mode)) {
+			if ((tmp = getSize(buf)) < 0) {
+				fprintf(stderr, "%s getSize error\n", buf);
+				return -1;
+			}
+			size += tmp;
+		} else {
+			size += statbuf.st_size;
+		}
+	}
+
+	for (int i = 0; i < count; i++)
+		free(dirList[i]);
+
+	if (dirList != NULL)
+		free(dirList);
+
+	return size;
+}
+
 int __printSize(const char *filepath, int curDepth, int depth) {
 	char buf[BUF_LEN];
 	struct dirent **dirList;
 	struct stat statbuf;
 	int count;
+	long size = 0, tmp;
 
 	if (curDepth == depth)
 		return 0;
 
-	if ((count = scandir(filepath, &dirList, NULL, alphasort)) < 0) {
+	if ((count = scandir(filepath, &dirList, ignoreParentAndSelfDirFilter, alphasort)) < 0) {
 		fprintf(stderr, "%s scandir error\n", filepath);
 		return -1;
+	}
+
+	if (count == 0) {
+		printf("0\t%s\n", filepath);
+		return 0;
 	}
 
 	for (int i = 0; i < count; i++) {
@@ -452,7 +496,7 @@ int recoverFile(const char *filepath, int lOption) {
 
 	if (lOption) {
 		sprintf(buf, "%s/%s", cwd, TRASH_FILES);
-		if ((count = scandir(buf, &fileList, filterHiddenFile, deleteTimeSort)) < 0) {
+		if ((count = scandir(buf, &fileList, ignoreParentAndSelfDirFilter, deleteTimeSort)) < 0) {
 			fprintf(stderr, "scandir error\n");
 			return -1;
 		}
@@ -578,8 +622,10 @@ int recoverFile(const char *filepath, int lOption) {
 	return 0;
 }
 
-int filterHiddenFile(const struct dirent *dir) {
-	return dir->d_name[0] != '.';
+int ignoreParentAndSelfDirFilter(const struct dirent *dir) {
+	if (!strcmp(dir->d_name, ".") || !strcmp(dir->d_name, ".."))
+		return 0;
+	return 1;
 }
 
 
@@ -591,8 +637,8 @@ int __printTree(int top, int left, int *bottom, const char *filepath) {
 	char exp[10];
 	sprintf(exp, "|%%-%ds", TAB_SIZE - 1);
 
-	if ((count = scandir(filepath, &fileList, filterHiddenFile, alphasort)) == 0) {
-		fprintf(stderr, ". open error\n");
+	if ((count = scandir(filepath, &fileList, ignoreParentAndSelfDirFilter, alphasort)) < 0) {
+		fprintf(stderr, "%s scandir error\n", filepath);
 		return -1;
 	}
 

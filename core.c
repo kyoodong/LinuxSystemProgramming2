@@ -680,12 +680,17 @@ int __printTree(int top, int left, int *bottom, const char *filepath) {
 		//termbuf[*bottom][left + TAB_SIZE] = ' ';
 
 		if (S_ISDIR(statbuf.st_mode)) {
-			for (int j = strlen(fileList[i]->d_name) + 1; j < TAB_SIZE; j++) 
+			int j;
+			for (j = strlen(fileList[i]->d_name) + 1; j < TAB_SIZE; j++) 
 				termbuf[*bottom][left + j] = '-';
-			
-			__printTree(*bottom, left + TAB_SIZE, bottom, buf);
+			if (__printTree(*bottom, left + TAB_SIZE, bottom, buf) == 0) {
+				sprintf(termbuf[*bottom] + left + j, "[Empty dir]");
+				(*bottom)++;
+			}
+		} else {
+			(*bottom)++;
 		}
-		(*bottom)++;
+		printf("filepath = %s/%s\nbottom = %d\n", filepath, fileList[i]->d_name, *bottom);
 		
 		if (termHeight < *bottom)
 			termHeight = *bottom;
@@ -694,6 +699,7 @@ int __printTree(int top, int left, int *bottom, const char *filepath) {
 	for (int j = 0; j < count; j++)
 		free(fileList[j]);
 	free(fileList);
+	return count;
 }
 
 int printTree() {
@@ -707,17 +713,21 @@ int printTree() {
 			termbuf[i][j] = ' ';
 
 	if ((count = scandir(".", &dirList, filterOnlyDirectory, alphasort)) < 0) {
-		fprintf(stderr, "scandir error\n");
+		fprintf(stderr, ". scandir error\n");
 		return -1;
 	}
 
 	for (int i = 0; i < count; i++) {
-		for (int j = 0; dirList[i]->d_name[j] != '\0'; j++)
+		int j;
+		for (j = 0; dirList[i]->d_name[j] != '\0'; j++)
 			termbuf[bottom][j] = dirList[i]->d_name[j];
 
-			for (int j = strlen(dirList[i]->d_name); j < TAB_SIZE; j++) 
-				termbuf[bottom][j] = '-';
-		__printTree(bottom, TAB_SIZE, &bottom, dirList[i]->d_name);
+		for (j = strlen(dirList[i]->d_name); j < TAB_SIZE; j++) 
+			termbuf[bottom][j] = '-';
+
+		if (__printTree(bottom, TAB_SIZE, &bottom, dirList[i]->d_name) == 0) {
+			sprintf(termbuf[bottom] + j, "[Empty dir]");
+		}
 	}
 
 	for (int h = 0; h <= termHeight; h++) {

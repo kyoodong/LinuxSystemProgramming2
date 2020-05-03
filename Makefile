@@ -38,6 +38,9 @@ test:
 	mkdir -p dir/dir1
 	touch dir/dir1/1.c
 	touch dir/dir1/2.c
+	mkdir -p dir/dir1/dir2
+	touch dir/dir1/dir2/1.c
+	mkdir dir/dir_empty
 	rm -rf cdir
 	cp -r dir cdir
 

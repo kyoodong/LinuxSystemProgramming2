@@ -1,4 +1,4 @@
-ssu_mntr: clear main.o prompt.o core.o test 
+ssu_mntr: clear main.o prompt.o core.o test daemon
 	gcc main.o prompt.o core.o -o ssu_mntr -lpthread
 
 main.o: main.c
@@ -25,6 +25,11 @@ core-debug.o: core.c
 
 clear: 
 	rm -f *.o ssu_mntr
+	rm -f daemon
+
+daemon:
+	gcc daemon.c -o daemon
+	./daemon -D
 
 test:
 	rm -rf dir
@@ -52,3 +57,6 @@ show:
 	echo "<< trash info list >>"
 	ls trash/info
 	cat trash/info/*
+
+log:
+	cat /var/log/syslog | grep "SSUMonitor"

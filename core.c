@@ -690,7 +690,6 @@ int __printTree(int top, int left, int *bottom, const char *filepath) {
 		} else {
 			(*bottom)++;
 		}
-		printf("filepath = %s/%s\nbottom = %d\n", filepath, fileList[i]->d_name, *bottom);
 		
 		if (termHeight < *bottom)
 			termHeight = *bottom;

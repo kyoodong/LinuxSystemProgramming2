@@ -159,8 +159,17 @@ void log_write(const char *state, const char *filepath) {
 	char timestr[30];
 	char filename[BUF_LEN];
 	char buf[BUF_LEN];
+	const char *path;
+
+	getcwd(buf, sizeof(buf));
 	
-	strcpy(filename, filepath);
+	path = strstr(filepath, buf);
+	if (path == NULL)
+		path = filepath;
+	else
+		path += strlen(buf);
+	strcpy(filename, path);
+
 	for (char *p = filename; *p != '\0'; p++) {
 		if (*p == '/')
 			*p = '_';

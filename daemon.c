@@ -73,10 +73,11 @@ void insert(struct file *parent, struct file *file) {
 
 	file->parent = parent;
 	file->next_sibling = NULL;
+	file->first_child = NULL;
+	file->prev_sibling = NULL;
 
 	if (parent->first_child == NULL) {
 		parent->first_child = file;
-		file->prev_sibling = NULL;
 	} else {
 		tmp = parent->first_child;
 
@@ -85,6 +86,20 @@ void insert(struct file *parent, struct file *file) {
 		tmp->next_sibling = file;
 		file->prev_sibling = tmp;
 	}
+}
+
+void deleteChildren(struct file *file) {
+	struct file *child;
+
+	if (file == NULL)
+		return;
+
+	child = file->first_child;
+	while (child != NULL) {
+		deleteChildren(child);
+		child = child->next_sibling;
+	}
+	free(file);
 }
 
 void delete(struct file *file) {
@@ -102,8 +117,7 @@ void delete(struct file *file) {
 	if (file->prev_sibling != NULL)
 		file->prev_sibling->next_sibling = file->next_sibling;
 
-	delete(file->first_child);
-	free(file);
+	deleteChildren(file);
 }
 
 struct file* find(const struct file *parent, const char *filepath) {
@@ -123,6 +137,7 @@ int init() {
 	pid_t pid;
 	int fd, maxfd;
 
+	/*
 	if ((pid = fork()) < 0) {
 		fprintf(stderr, "fork error\n");
 		exit(1);
@@ -146,6 +161,7 @@ int init() {
 	fd = open("/dev/null", O_RDWR);
 	dup(0);
 	dup(0);
+	*/
 	return 0;
 }
 
@@ -167,8 +183,6 @@ void log_write(const char *state, const char *filepath) {
 	getcwd(buf, sizeof(buf));
 	strcat(buf, "/");
 	strcat(buf, DIRECTORY);
-	syslog(LOG_DEBUG, "[log_write] %s", buf);
-	syslog(LOG_DEBUG, "[log_write] %s", filepath);
 	
 	path = strstr(filepath, buf);
 	if (path == NULL) {
@@ -191,6 +205,7 @@ void log_write(const char *state, const char *filepath) {
 	timeinfo = localtime(&rawtime);
 	strftime(timestr, sizeof(timestr), TIME_FORMAT, timeinfo);
 	sprintf(buf, "[%s][%s_%s]\n", timestr, state, filename);
+	syslog(LOG_INFO, "[log_write][%s][%d][%s_%s]\n", timestr, getpid(), state, filename);
 	fprintf(fp, "%s", buf);
 }
 
@@ -255,6 +270,7 @@ void daemon_main() {
 	struct file *file;
 
 	root.is_visited = 1;
+	strcpy(root.filepath, "root");
 	openlog("[SSUMonitor]", LOG_PID, LOG_LPR);
 
 	syslog(LOG_DEBUG, "%d\n", getpid());

@@ -33,9 +33,13 @@ clear:
 	rm -f mdebug
 	rm -f log.txt
 
+kill:
+	killall -9 mdebug
+
+
 daemon:
 	gcc daemon.c -o mdaemon
-	./mdaemon -D
+	./mdaemon
 
 test:
 	rm -rf dir
@@ -65,4 +69,4 @@ show:
 	cat trash/info/*
 
 log:
-	cat /var/log/syslog | grep "SSUMonitor"
+	tail -150 /var/log/syslog | grep "SSUMonitor"

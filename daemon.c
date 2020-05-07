@@ -9,9 +9,8 @@
 #include <syslog.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include "core.h"
 
-#define BUF_LEN 1024
-#define TIME_FORMAT "%Y-%m-%d %H-%m-%S"
 #define CREATE "create"
 #define MODIFY "modify"
 #define DELETE "delete"
@@ -30,36 +29,40 @@ FILE *fp;
 
 struct file* traversal(struct file *rootFile) {
 	static struct file *file;
+	struct file *ret;
 
-	if (rootFile != NULL)
+	if (rootFile != NULL) {
 		file = rootFile;
 
-	if (file == NULL) {
+		while (file->first_child != NULL)
+			file = file->first_child;
+
+		ret = file;
+		if (file->next_sibling != NULL)
+			file = file->next_sibling;
+		else
+			file = file->parent;
+		syslog(LOG_DEBUG, "[traversal] return root %s", ret->filepath);
+		return ret;
+	}
+
+	if (file == NULL || file == &root) {
+		syslog(LOG_DEBUG, "[traversal] return NULL");
 		return NULL;
 	}
 
-	if (file->first_child != NULL) {
-		file = file->first_child;
-		return file;
-	}
-		
+	ret = file;
 	if (file->next_sibling != NULL) {
 		file = file->next_sibling;
-		return file;
+
+		while (file->first_child != NULL)
+			file = file->first_child;
 	}
-
-	if (file->parent == NULL)
-		return NULL;
-
-	while (file->parent->next_sibling == NULL) {
+	else
 		file = file->parent;
-		if (file->parent == NULL) {
-			return NULL;
-		}
-	}
-	
-	file = file->parent->next_sibling;
-	return file;
+
+	syslog(LOG_DEBUG, "[traversal] return self %s", ret->filepath);
+	return ret;
 }
 
 void insert(struct file *parent, struct file *file) {
@@ -162,12 +165,21 @@ void log_write(const char *state, const char *filepath) {
 	const char *path;
 
 	getcwd(buf, sizeof(buf));
+	strcat(buf, "/");
+	strcat(buf, DIRECTORY);
+	syslog(LOG_DEBUG, "[log_write] %s", buf);
+	syslog(LOG_DEBUG, "[log_write] %s", filepath);
 	
 	path = strstr(filepath, buf);
-	if (path == NULL)
-		path = filepath;
+	if (path == NULL) {
+		path = strstr(filepath, DIRECTORY);
+		if (path == NULL)
+			path = filepath;
+		else
+			path += strlen(DIRECTORY) + 1;
+	}
 	else
-		path += strlen(buf);
+		path += strlen(buf) + 1;
 	strcpy(filename, path);
 
 	for (char *p = filename; *p != '\0'; p++) {
@@ -182,7 +194,7 @@ void log_write(const char *state, const char *filepath) {
 	fprintf(fp, "%s", buf);
 }
 
-int observe(struct file *parent, const char *filepath) {
+int observe(struct file *parent, const char *filepath, int depth) {
 	struct stat statbuf;
 	char buf[BUF_LEN];
 	char timestr[30];
@@ -194,6 +206,7 @@ int observe(struct file *parent, const char *filepath) {
 
 	file = find(parent, filepath);
 	stat(filepath, &statbuf);
+	syslog(LOG_DEBUG, "[observe] visit %s", filepath);
 
 	// 없던 파일이 생긴 경우
 	if (file == NULL) {
@@ -205,12 +218,8 @@ int observe(struct file *parent, const char *filepath) {
 
 		// 초기화 과정에서는 로그를 찍지 않음
 		if (!is_init) {
+			syslog(LOG_INFO, "[observe] New file %s is detected", file->filepath);
 			log_write(CREATE, filepath);
-		}
-	} else {
-		if (file->stat.st_mtime != statbuf.st_mtime) {
-			log_write(MODIFY, filepath);
-			file->stat = statbuf;
 		}
 	}
 
@@ -225,20 +234,22 @@ int observe(struct file *parent, const char *filepath) {
 
 		for (int i = 0; i < count; i++) {
 			sprintf(buf, "%s/%s", filepath, dirList[i]->d_name);
-			observe(file, buf);
+			observe(file, buf, depth + 1);
 		}
 
 		for (int i = 0; i < count; i++)
 			free(dirList[i]);
 		free(dirList);
 	}
+	if (depth > 0 && file->stat.st_mtime != statbuf.st_mtime) {
+		log_write(MODIFY, filepath);
+		file->stat = statbuf;
+	}
 
 	return 0;
 }
 
 void daemon_main() {
-	struct dirent **dirList;
-	int count;
 	char buf[BUF_LEN];
 	struct stat statbuf;
 	struct file *file;
@@ -247,10 +258,6 @@ void daemon_main() {
 	openlog("[SSUMonitor]", LOG_PID, LOG_LPR);
 
 	syslog(LOG_DEBUG, "%d\n", getpid());
-	if ((count = scandir(".", &dirList, ignoreParentAndSelfDirFilter, NULL)) < 0) {
-		syslog(LOG_ERR, "scandir error %m\n");
-		exit(1);
-	}
 	
 	if ((fp = fopen("log.txt", "w+")) == NULL) {
 		syslog(LOG_ERR, "log.txt open error %m\n");
@@ -258,21 +265,16 @@ void daemon_main() {
 	}
 
 	while (1) {
-		for (int i = 0; i < count; i++) {
-			getcwd(buf, sizeof(buf));
-			strcat(buf, "/");
-			strcat(buf, dirList[i]->d_name);
-
-			stat(buf, &statbuf);
-			if (S_ISDIR(statbuf.st_mode))
-				observe(&root, buf);
-		}
+		observe(&root, DIRECTORY, 0);
+		syslog(LOG_INFO, "observing is finished");
 
 		if (!is_init) {
+			syslog(LOG_DEBUG, "before traversal");
 			file = traversal(&root);
-
+ 
 			while (file != NULL) {
 				if (!file->is_visited) {
+					syslog(LOG_DEBUG, "%s is not visited", file->filepath);
 					log_write(DELETE, file->filepath);
 					delete(file->first_child);
 					struct file *tmp = file;
@@ -281,19 +283,19 @@ void daemon_main() {
 					continue;
 				}
 				file->is_visited = 0;
+				syslog(LOG_DEBUG, "%s %d", file->filepath, file->is_visited);
 				file = traversal(NULL);
 			}
+			syslog(LOG_INFO, "traversal is finished");
 		}
 		fflush(fp);
 		sleep(INTERVAL);
 		is_init = 0;
+		syslog(LOG_DEBUG, "still running");
 	}
 	closelog();
 	fclose(fp);
 
-	for (int i = 0; i < count; i++)
-		free(dirList[i]);
-	free(dirList);
 }
 
 int main() {

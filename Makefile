@@ -14,6 +14,10 @@ debug: clear main-debug.o prompt-debug.o core-debug.o test
 	gcc -g main-debug.o prompt-debug.o core-debug.o -o ssu_mntr_debug -lpthread
 	gdb ssu_mntr_debug
 
+ddebug: clear test
+	gcc -g daemon.c -o mdebug
+	gdb mdebug
+
 main-debug.o: main.c
 	gcc -g -c main.c -o main-debug.o
 
@@ -25,11 +29,13 @@ core-debug.o: core.c
 
 clear: 
 	rm -f *.o ssu_mntr
-	rm -f daemon
+	rm -f mdaemon
+	rm -f mdebug
+	rm -f log.txt
 
 daemon:
-	gcc daemon.c -o daemon
-	./daemon -D
+	gcc daemon.c -o mdaemon
+	./mdaemon -D
 
 test:
 	rm -rf dir

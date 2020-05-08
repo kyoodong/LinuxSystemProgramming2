@@ -36,7 +36,6 @@ clear:
 kill:
 	killall -9 mdebug
 
-
 daemon:
 	gcc daemon.c -o mdaemon
 	./mdaemon

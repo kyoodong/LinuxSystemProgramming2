@@ -38,8 +38,12 @@ struct file* traversal(struct file *rootFile) {
 			file = file->first_child;
 
 		ret = file;
-		if (file->next_sibling != NULL)
+		if (file->next_sibling != NULL) {
 			file = file->next_sibling;
+
+			while (file->first_child != NULL)
+				file = file->first_child;
+		}
 		else
 			file = file->parent;
 		syslog(LOG_DEBUG, "[traversal] return root %s", ret->filepath);
@@ -218,7 +222,10 @@ int observe(struct file *parent, const char *filepath, int depth) {
 	struct file *file;
 
 	file = find(parent, filepath);
-	stat(filepath, &statbuf);
+	if (stat(filepath, &statbuf) < 0) {
+		syslog(LOG_INFO, "[observe] %s was deleted\n", filepath);
+		return 0;
+	}
 	syslog(LOG_DEBUG, "[observe] visit %s", filepath);
 
 	// 없던 파일이 생긴 경우
@@ -253,10 +260,6 @@ int observe(struct file *parent, const char *filepath, int depth) {
 		for (int i = 0; i < count; i++)
 			free(dirList[i]);
 		free(dirList);
-	}
-	if (depth > 0 && file->stat.st_mtime != statbuf.st_mtime) {
-		log_write(MODIFY, filepath);
-		file->stat = statbuf;
 	}
 
 	return 0;
@@ -296,6 +299,13 @@ void daemon_main() {
 					delete(tmp);
 					continue;
 				}
+
+				stat(file->filepath, &statbuf);
+				if (file->stat.st_mtime != statbuf.st_mtime) {
+					log_write(MODIFY, file->filepath);
+					file->stat = statbuf;
+				}
+				
 				file->is_visited = 0;
 				syslog(LOG_DEBUG, "%s %d", file->filepath, file->is_visited);
 				file = traversal(NULL);

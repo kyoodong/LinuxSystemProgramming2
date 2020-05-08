@@ -682,8 +682,6 @@ int __printTree(int top, int left, int *bottom, const char *filepath) {
 }
 
 int printTree() {
-	struct dirent **dirList;
-	int count;
 	int bottom = 0;
 
 	termWidth = termHeight = 0;
@@ -691,22 +689,15 @@ int printTree() {
 		for (int j = 0; j < BUF_LEN; j++)
 			termbuf[i][j] = ' ';
 
-	if ((count = scandir(".", &dirList, filterOnlyDirectory, alphasort)) < 0) {
-		fprintf(stderr, ". scandir error\n");
-		return -1;
-	}
+	int j;
+	for (j = 0; DIRECTORY[j] != '\0'; j++)
+		termbuf[bottom][j] = DIRECTORY[j];
 
-	for (int i = 0; i < count; i++) {
-		int j;
-		for (j = 0; dirList[i]->d_name[j] != '\0'; j++)
-			termbuf[bottom][j] = dirList[i]->d_name[j];
+	for (j = strlen(DIRECTORY); j < TAB_SIZE; j++) 
+		termbuf[bottom][j] = '-';
 
-		for (j = strlen(dirList[i]->d_name); j < TAB_SIZE; j++) 
-			termbuf[bottom][j] = '-';
-
-		if (__printTree(bottom, TAB_SIZE, &bottom, dirList[i]->d_name) == 0) {
-			sprintf(termbuf[bottom] + j, "[Empty dir]");
-		}
+	if (__printTree(bottom, TAB_SIZE, &bottom, DIRECTORY) == 0) {
+		sprintf(termbuf[bottom] + j, "[Empty dir]");
 	}
 
 	for (int h = 0; h <= termHeight; h++) {
@@ -716,8 +707,5 @@ int printTree() {
 		putchar('\n');
 	}
 
-	for (int i = 0; i < count; i++)
-		free(dirList[i]);
-	free(dirList);
 	return 0;
 }

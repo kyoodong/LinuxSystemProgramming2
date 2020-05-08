@@ -143,7 +143,6 @@ void clearInfoList() {
 		free(infoList);
 		infoList = next;
 	}
-	infoList = NULL;
 }
 
 void insertInfoNode(struct info_node *node) {
@@ -154,9 +153,12 @@ void insertInfoNode(struct info_node *node) {
 		return;
 	}
 
-	node->next = infoList;
-	infoList->prev = node;
-	infoList = node;
+	struct info_node *tmp = infoList;
+	while (tmp->next != NULL)
+		tmp = tmp->next;
+
+	tmp->next = node;
+	node->prev = tmp;
 }
 
 void removeDeletionNode(struct deletion_node *node) {
@@ -552,7 +554,6 @@ int recoverFile(const char *filepath, int lOption) {
 		free(fileList);
 	}
 
-
 	fseek(fp, 0, SEEK_END);
 	fileSize = ftell(fp);
 	count = 0;
@@ -618,12 +619,13 @@ int recoverFile(const char *filepath, int lOption) {
 
 	// 복구하고자 하는 파일이 이미 해당 디렉토리에 있는 경우 넘버링
 	if (access(buf, F_OK) == 0) {
+		index = 1;
 		while (1) {
-			index = 1;
 			strcpy(buf, infoNode->filepath);
 			sprintf(buf + strlen(buf), "/%d_%s", index, filename);
 			if (access(buf, F_OK) != 0)
 				break;
+			index++;
 		}
 	}
 

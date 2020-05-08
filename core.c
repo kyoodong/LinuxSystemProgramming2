@@ -241,17 +241,10 @@ int __deleteFile(const char *filepath, const char *endDate, const char *endTime,
 
 int deleteFile(const char *filepath, const char *endDate, const char *endTime, int iOption, int rOption) {
 	char relatedFilepath[BUF_LEN];
-	struct dirent **dirList;
-	int count;
 	int status;
 
 	if (filepath == NULL || strlen(filepath) == 0) {
 		fprintf(stderr, "<filename> is empty\n");
-		return -1;
-	}
-
-	if ((count = scandir(cwd, &dirList, filterOnlyDirectory, NULL)) < 0) {
-		fprintf(stderr, "scandir error\n");
 		return -1;
 	}
 
@@ -264,32 +257,19 @@ int deleteFile(const char *filepath, const char *endDate, const char *endTime, i
 		}
 	}
 
+	// 절대경로로 입력되어 바로 삭제할 수 있는 경우
 	status = __deleteFile(filepath, endDate, endTime, iOption, rOption);
 	if (status <= 0) {
 		if (status < 0)
 			fprintf(stderr, "%s delete file error\n", filepath);
-		for (int i = 0; i < count; i++)
-			free(dirList[i]);
-		free(dirList);
 		return status;
 	}
 
-	for (int i = 0; i < count; i++) {
-		sprintf(relatedFilepath, "%s/%s", dirList[i]->d_name, filepath);
-
-		if (__deleteFile(relatedFilepath, endDate, endTime, iOption, rOption) == 1)
-			continue;
-	
-		for (int j = 0; j < count; j++)
-			free(dirList[j]);
-		free(dirList);
+	sprintf(relatedFilepath, "%s/%s", DIRECTORY, filepath);
+	if (__deleteFile(relatedFilepath, endDate, endTime, iOption, rOption) == 0)
 		return 0;
-	}
-
+	
 	fprintf(stderr, "%s doesn't exist\n", filepath);
-	for (int i = 0; i < count; i++)
-		free(dirList[i]);
-	free(dirList);
 	return -1;
 }
 

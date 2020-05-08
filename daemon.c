@@ -137,7 +137,6 @@ int init() {
 	pid_t pid;
 	int fd, maxfd;
 
-	/*
 	if ((pid = fork()) < 0) {
 		fprintf(stderr, "fork error\n");
 		exit(1);
@@ -161,7 +160,6 @@ int init() {
 	fd = open("/dev/null", O_RDWR);
 	dup(0);
 	dup(0);
-	*/
 	return 0;
 }
 

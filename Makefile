@@ -56,8 +56,6 @@ test:
 	mkdir -p dir/dir1/dir2
 	touch dir/dir1/dir2/1.c
 	mkdir dir/dir_empty
-	rm -rf cdir
-	cp -r dir cdir
 
 show:
 	echo "<< trash file list >>"

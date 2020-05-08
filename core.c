@@ -18,6 +18,11 @@ struct info_node *infoList;
 char termbuf[BUF_LEN][BUF_LEN];
 int termWidth, termHeight;
 
+extern int requestInput;
+extern char inputBuffer[BUF_LEN];
+extern pthread_mutex_t inputMutex;
+extern pthread_cond_t inputCond;
+
 int init() {
 	char *p;
 	pthread_t deletingThread;
@@ -34,6 +39,21 @@ int init() {
 	}
 }
 
+void getInputStream() {
+	pthread_mutex_lock(&inputMutex);
+	requestInput = 1;
+	pthread_cond_signal(&inputCond);
+	pthread_cond_wait(&inputCond, &inputMutex);
+	pthread_mutex_unlock(&inputMutex);
+}
+
+void releaseInputStream() {
+	pthread_mutex_lock(&inputMutex);
+	requestInput = 0;
+	pthread_cond_signal(&inputCond);
+	pthread_mutex_unlock(&inputMutex);
+}
+
 void* deleteThread() {
 	struct deletion_node *node, *tmp;
 	time_t curTime;
@@ -45,9 +65,10 @@ void* deleteThread() {
 			if (node->endTime <= curTime) {
 				tmp = node;
 
-				printf("%s\ncurTime = %ld\nendTime = %ld\n", node->filepath, curTime, node->endTime);
+				printf("[filename]: %s\ncurTime = %ld\nendTime = %ld\n", node->filepath, curTime, node->endTime);
 				// 이미 삭제된 경우
 				if (access(node->filepath, F_OK) != 0) {
+					printf("file %s is already deleted\n", node->filepath);
 					node = node->next;
 					removeDeletionNode(tmp);
 					continue;
@@ -55,15 +76,27 @@ void* deleteThread() {
 
 				// r 옵션 켜져있었으면 물어보고 삭제
 				if (node->rOption) {
-					printf("Delete [y/n]? ");
-					char c = getchar();
-
-					// 파일 삭제 안한다고하면 삭제 리스트에서만 제거
-					if (c == 'n') {
-						node = node->next;
-						removeDeletionNode(tmp);
-						continue;
+					int isDelete = 0;
+					while (1) {
+						printf("Delete [y/n]? ");
+						fflush(stdout);
+						getInputStream();
+						if (!strcmp(inputBuffer, "y") || !strcmp(inputBuffer, "Y")) {
+							isDelete = 1;
+							break;
+						}
+						if (!strcmp(inputBuffer, "n") || !strcmp(inputBuffer, "N")) {
+							printf("%s is not deleted\n", node->filepath);
+							isDelete = 0;
+							node = node->next;
+							removeDeletionNode(tmp);
+							break;
+						}
 					}
+					releaseInputStream();
+
+					if (!isDelete)
+						continue;
 				}
 
 				// 파일 삭제 후 삭제 리스트에서 제거

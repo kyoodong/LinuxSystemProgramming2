@@ -2,14 +2,17 @@ tree
 size dir -d 4
 delete 1.c
 tree
-size dir
 recover 1.c
 tree
 size dir -d 4
-delete 10.c
-delete dir1
+delete 2.c
+delete dir1/2.c
 tree
-recover dir1
+recover 2.c
+1
 tree
-delete dir1 -i
+size dir
+size dir -d 4
+recover 2.c
 tree
+size dir

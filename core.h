@@ -8,10 +8,11 @@
 #define MAX_TRASH_INFO_SIZE (1024 * 2)
 #define TIME_FORMAT "%Y-%m-%d %H:%M:%S"
 #define TIME_FORMAT_LEN 19
-#define DELETE_INTERVAL 10 
-#define TAB_SIZE 16
+#define DELETE_INTERVAL 0 
+#define TAB_SIZE 21
 #define BUF_LEN 1024
 #define DIRECTORY "dir"
+#define MAX_INFO_SIZE (1024 * 2)
 
 struct deletion_node {
 	char filepath[BUF_LEN];
@@ -28,6 +29,8 @@ struct info_node {
 	struct info_node *next, *prev;
 };
 
+int readTrashInfo(FILE *fp, struct info_node *infoNode);
+int getSize(const char *dirpath);
 
 void* deleteThread();
 void removeDeletionNode(struct deletion_node *node);

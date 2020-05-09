@@ -67,8 +67,10 @@ int printPrompt() {
 	promptBuffer[index] = '\0';
 	// @TODO: 디버깅용
 	printf("%s\n", promptBuffer);
+
 	if (processCommand(promptBuffer) < 0) {
 		fprintf(stderr, "processCommand error\n");
+		return -1;
 	}
 	promptBuffer[0] = '\0';
 	return 0;

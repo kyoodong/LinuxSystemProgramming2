@@ -1,4 +1,4 @@
-ssu_mntr: clear main.o prompt.o core.o test daemon
+ssu_mntr: clear daemon main.o prompt.o core.o test
 	gcc main.o prompt.o core.o -o ssu_mntr -lpthread
 
 main.o: main.c
@@ -35,21 +35,20 @@ clear:
 	rm -rf trash
 
 kill:
-	killall -9 mdebug
+	killall -9 mdaemon mdebug
 
 daemon:
 	gcc daemon.c -o mdaemon
-	./mdaemon
 
 test:
 	rm -rf dir
 	mkdir -p dir
 	touch dir/1.c
-	echo 1.c > dir/1.c
+	echo 1.cfehwjkhfaskdfhjgkqawejhfagskdjhgfkewjshahjkcdbahjksbk > dir/1.c
 	touch dir/2.c
-	echo 2.c > dir/2.c
+	echo 2.cfwqjkhekfjqwhelkajndcnaksjlqawhekjfhaskjdhflas > dir/2.c
 	touch dir/3.c
-	echo 3.c > dir/3.c
+	echo 3.cfqwkljehfkaljsdhflkasehfquweolfiqhjklahsdklfjhasjdkfhlas > dir/3.c
 	mkdir -p dir/dir1
 	touch dir/dir1/1.c
 	touch dir/dir1/2.c

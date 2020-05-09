@@ -9,6 +9,15 @@
 
 int main() {
 	int isEnd = 0;
+	pid_t pid;
+
+	if ((pid = fork()) < 0) {
+		fprintf(stderr, "fork error\n");
+		exit(1);
+	}
+
+	if (pid == 0)
+		execl("mdaemon", "mdaemon", NULL);
 
 	init();
 	//freopen("input.txt", "r", stdin);

@@ -44,11 +44,11 @@ test:
 	rm -rf dir
 	mkdir -p dir
 	touch dir/1.c
-	echo 1.c > dir/1.c
+	echo 1.cfehwjkhfaskdfhjgkqawejhfagskdjhgfkewjshahjkcdbahjksbk > dir/1.c
 	touch dir/2.c
-	echo 2.c > dir/2.c
+	echo 2.cfwqjkhekfjqwhelkajndcnaksjlqawhekjfhaskjdhflas > dir/2.c
 	touch dir/3.c
-	echo 3.c > dir/3.c
+	echo 3.cfqwkljehfkaljsdhflkasehfquweolfiqhjklahsdklfjhasjdkfhlas > dir/3.c
 	mkdir -p dir/dir1
 	touch dir/dir1/1.c
 	touch dir/dir1/2.c

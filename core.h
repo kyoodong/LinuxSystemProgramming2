@@ -13,6 +13,7 @@
 #define BUF_LEN 1024
 #define DIRECTORY "dir"
 #define REL_DIRECTORY "./dir"
+#define MAX_INFO_SIZE (1024 * 2)
 
 struct deletion_node {
 	char filepath[BUF_LEN];
@@ -29,6 +30,8 @@ struct info_node {
 	struct info_node *next, *prev;
 };
 
+int readTrashInfo(FILE *fp, struct info_node *infoNode);
+int getSize(const char *dirpath);
 
 void* deleteThread();
 void removeDeletionNode(struct deletion_node *node);

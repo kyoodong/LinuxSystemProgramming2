@@ -150,7 +150,6 @@ int init() {
 		exit(0);
 
 	pid = getpid();
-	printf("process %d running as daemon\n", pid);
 	setsid();
 	signal(SIGTTIN, SIG_IGN);
 	signal(SIGTTOU, SIG_IGN);
@@ -326,8 +325,6 @@ int main() {
 	pid_t pid;
 
 	pid = getpid();
-	printf("parent process : %d\n", pid);
-	printf("daemon process initialization\n");
 
 	if (init() < 0) {
 		fprintf(stderr, "init failed\n");

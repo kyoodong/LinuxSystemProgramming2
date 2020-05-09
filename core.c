@@ -369,13 +369,17 @@ int sendToTrash(const char *filepath) {
 
 	// buffer 에 휴지통 파일 path 기록
 	fprintf(fp, "%s\n", realpath(filepath, buffer));
-	sprintf(buffer, "%s/%s/%s", cwd, TRASH_FILES, filename);
 
 	t = time(NULL);
 	timeinfo = localtime(&t);
 	strftime(buffer2, sizeof(buffer2), TIME_FORMAT, timeinfo);
 	fprintf(fp, "D : %s\n", buffer2);
-	strcat(buffer, buffer2);
+
+	for (int i = 1;;i++) {
+		sprintf(buffer, "%s/%s/%s_%d", cwd, TRASH_FILES, filename, i);
+		if (access(buffer, F_OK) != 0)
+			break;
+	}
 
 	timeinfo = localtime(&statbuf.st_mtime);
 	strftime(buffer2, sizeof(buffer2), TIME_FORMAT, timeinfo);
@@ -537,7 +541,7 @@ int recoverFile(const char *filepath, int lOption) {
 	char buf[BUF_LEN];
 	char trashFilepath[BUF_LEN];
 	FILE *fp;
-	int count, index, num;
+	int count, index, num = 1;
 	struct info_node *infoNode;
 	size_t fileSize;
 	struct dirent **fileList;
@@ -677,33 +681,45 @@ int recoverFile(const char *filepath, int lOption) {
 		infoNode = infoList;
 		for (int i = 1; i < num; i++)
 			infoNode = infoNode->next;
-	} else {
+	}
+	
+	// 복구할 수 있는 파일이 하나 뿐인 경우
+	else {
 		infoNode = infoList;
 	}
 
-	sprintf(buf, "%s%s", filename, infoNode->deletionTime);
-	*strrchr(infoNode->filepath, '/') = '\0';
-	sprintf(path, "%s/%s/", cwd, TRASH_FILES);
-	strcat(path, buf);
-	
-	strcpy(buf, infoNode->filepath);
-	strcat(buf, "/");
-	strcat(buf, filename);
+	// buf = 선택한 파일의 휴지통 내 경로
+	sprintf(trashFilepath, "%s/%s/%s_%d", cwd, TRASH_FILES, filename, num);
 
-	// 복구하고자 하는 파일이 이미 해당 디렉토리에 있는 경우 넘버링
-	if (access(buf, F_OK) == 0) {
+	// 복구하고자 하는 위치에 같은 이름의 파일이 있는 경우 넘버링
+	if (access(infoNode->filepath, F_OK) == 0) {
 		index = 1;
 		while (1) {
 			strcpy(buf, infoNode->filepath);
-			sprintf(buf + strlen(buf), "/%d_%s", index, filename);
+			sprintf(strrchr(buf, '/'), "/%d_%s", index, filename);
 			if (access(buf, F_OK) != 0)
 				break;
 			index++;
 		}
+		strcpy(infoNode->filepath, buf);
 	}
 
 	// 파일 실제 복구
-	rename(path, buf);
+	if (rename(trashFilepath, infoNode->filepath) < 0) {
+		fprintf(stderr, "recover file %s error\n", infoNode->filepath);
+		return -1;
+	}
+
+	// 넘버링 땡겨오기
+	while (1) {
+		num++;
+		sprintf(buf, "%s/%s/%s_%d", cwd, TRASH_FILES, filename, num);
+		if (access(buf, F_OK) != 0)
+			break;
+
+		sprintf(trashFilepath, "%s/%s/%s_%d", cwd, TRASH_FILES, filename, num - 1);
+		rename(buf, trashFilepath);
+	}
 	removeInfoNode(infoNode);
 
 	// info 파일 수정

@@ -160,8 +160,19 @@ void insertInfoNode(struct info_node *node) {
 	}
 
 	struct info_node *tmp = infoList;
-	while (tmp->next != NULL)
+	if (strcmp(tmp->filepath, node->filepath) > 0) {
+		node->next = tmp;
+		node->prev = NULL;
+		tmp->prev = node;
+		infoList = node;
+		return;
+	}
+
+	while (tmp->next != NULL) {
+		if (strcmp(tmp->filepath, node->filepath) > 0)
+			break;
 		tmp = tmp->next;
+	}
 
 	tmp->next = node;
 	node->prev = tmp;
@@ -504,74 +515,121 @@ int printSize(const char *filepath, int dOption) {
 	return 0;
 }
 
+int getIndex(const char *filepath) {
+	char *p;
+	p = strrchr(filepath, '_');
+	if (p == NULL)
+		return -1;
+
+	p++;
+	return atoi(p);
+}
+
 int deleteTimeSort(const struct dirent **left, const struct dirent **right) {
-	time_t leftTime, rightTime;
-	struct tm result;
-
-	const char *leftTimeStr = (*left)->d_name + strlen((*left)->d_name) - TIME_FORMAT_LEN;
-	const char *rightTimeStr = (*right)->d_name + strlen((*right)->d_name) - TIME_FORMAT_LEN;
-	strptime(leftTimeStr, TIME_FORMAT, &result);
-	leftTime = mktime(&result);
-	strptime(rightTimeStr, TIME_FORMAT, &result);
-	rightTime = mktime(&result);
-
-	return leftTime > rightTime;
+	int leftIndex, rightIndex;
+	leftIndex = getIndex((*left)->d_name);
+	rightIndex = getIndex((*right)->d_name);
+	return leftIndex > rightIndex;
 }
 
 int recoverFile(const char *filepath, int lOption) {
 	const char *filename;
-	char path[BUF_LEN];
 	char buf[BUF_LEN];
+	char trashFilepath[BUF_LEN];
 	FILE *fp;
 	int count, index, num;
 	struct info_node *infoNode;
 	size_t fileSize;
 	struct dirent **fileList;
 
+	// 파일 이름 추출
 	filename = strrchr(filepath, '/');
 	if (filename == NULL)
 		filename = filepath;
 
+	// 휴지통에 해당 파일이 있는지 확인
+	// r+ 옵션은 파일이 없는 경우 에러를 발생시킴
 	sprintf(buf, "%s/%s/%s", cwd, TRASH_INFO, filename);
-	if (access(buf, F_OK) != 0) {
-		fprintf(stderr, "There is no '%s' in '%s' directory\n", filepath, TRASH);
-		return -1;
-	}
-
 	if ((fp = fopen(buf, "r+")) == NULL) {
-		fprintf(stderr, "%s fopen error\n", buf);
+		printf("There is no '%s' in '%s' directory\n", filepath, TRASH);
 		return -1;
 	}
 
+	// l 옵션 - 휴지통 파일 삭제 시간이 오래된 순으로 출력 후 명령어 실행
 	if (lOption) {
-		sprintf(buf, "%s/%s", cwd, TRASH_FILES);
+		sprintf(buf, "%s/%s", cwd, TRASH_INFO);
+
 		if ((count = scandir(buf, &fileList, ignoreParentAndSelfDirFilter, deleteTimeSort)) < 0) {
 			fprintf(stderr, "scandir error\n");
 			return -1;
 		}
 
-		printf("Old trash files\n");
+		FILE *fp;
 		for (int i = 0; i < count; i++) {
-			char deleteTime[TIME_FORMAT_LEN + 10];
-			strcpy(buf, fileList[i]->d_name);
-			strcpy(deleteTime, fileList[i]->d_name + strlen(fileList[i]->d_name) - TIME_FORMAT_LEN);
-			buf[strlen(buf) - TIME_FORMAT_LEN] = '\0';
+			sprintf(trashFilepath, "%s/%s", buf, fileList[i]->d_name);
+			if ((fp = fopen(trashFilepath, "r")) < 0) {
+				fprintf(stderr, "%s fopen error\n", trashFilepath);
+				clearInfoList();
+				return -1;
+			}
 
-			printf("%d. %s\t\t%s\n", i + 1, buf, deleteTime);
+			// 파일 크기
+			fseek(fp, 0, SEEK_END);
+			fileSize = ftell(fp);
+
+			fseek(fp, 0, SEEK_SET);
+
+			// [Trash info] 읽어냄
+			char buf[BUF_LEN];
+			fgets(buf, sizeof(buf), fp);
+
+			while (ftell(fp) < fileSize) {
+				infoNode = calloc(1, sizeof(struct info_node));
+
+				// 파일명
+				fgets(buf, sizeof(buf), fp);
+				buf[strlen(buf) - 1] = '\0';
+				strcpy(infoNode->filepath, buf);
+		
+				// 삭제 시간
+				fgets(buf, sizeof(buf), fp);
+				buf[strlen(buf) - 1] = '\0';
+				strcpy(infoNode->deletionTime, buf + 4);
+
+				// 수정 시간
+				fgets(buf, sizeof(buf), fp);
+				buf[strlen(buf) - 1] = '\0';
+				strcpy(infoNode->modificationTime, buf + 4);
+
+				// 리스트 구축
+				insertInfoNode(infoNode);
+			}
+		}
+
+		infoNode = infoList;
+		int i = 0;
+		while (infoNode != NULL) {
+			printf("%d. %s\t\t%s\n", i + 1, infoNode->filepath, infoNode->deletionTime);
+			infoNode = infoNode->next;
+			i++;
 		}
 		printf("\n\n");
+		clearInfoList();
 
-		for (int i = 0; i < count; i++) {
+		for (i = 0; i < count; i++) {
 			free(fileList[i]);
 		}
 		free(fileList);
 	}
 
+	// 파일 크기
 	fseek(fp, 0, SEEK_END);
 	fileSize = ftell(fp);
 	count = 0;
 
 	fseek(fp, 0, SEEK_SET);
+
+	// [Trash info] 읽어냄
 	fgets(buf, sizeof(buf), fp);
 
 	while (ftell(fp) < fileSize) {
@@ -592,10 +650,12 @@ int recoverFile(const char *filepath, int lOption) {
 		buf[strlen(buf) - 1] = '\0';
 		strcpy(infoNode->modificationTime, buf + 4);
 
+		// 리스트 구축
 		insertInfoNode(infoNode);
 		count++;
 	}
 
+	// 복구할 수 있는 파일이 여러개인 경우 선택
 	if (count > 1) {
 		printf("There are multiple <%s> Choose one of them.\n", filename);
 		index = 0;

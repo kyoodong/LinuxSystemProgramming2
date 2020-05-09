@@ -1,1 +1,15 @@
+tree
+size dir -d 4
+delete 1.c
+tree
+size dir
 recover 1.c
+tree
+size dir -d 4
+delete 10.c
+delete dir1
+tree
+recover dir1
+tree
+delete dir1 -i
+tree

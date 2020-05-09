@@ -32,6 +32,7 @@ clear:
 	rm -f mdaemon
 	rm -f mdebug
 	rm -f log.txt
+	rm -rf trash
 
 kill:
 	killall -9 mdebug

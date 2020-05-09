@@ -12,7 +12,6 @@
 #define TAB_SIZE 16
 #define BUF_LEN 1024
 #define DIRECTORY "dir"
-#define REL_DIRECTORY "./dir"
 
 struct deletion_node {
 	char filepath[BUF_LEN];

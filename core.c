@@ -275,7 +275,7 @@ int __deleteFile(const char *filepath, const char *endDate, const char *endTime,
 }
 
 int deleteFile(const char *filepath, const char *endDate, const char *endTime, int iOption, int rOption) {
-	char relatedFilepath[BUF_LEN];
+	char absoluteFilepath[BUF_LEN];
 	int status;
 
 	if (filepath == NULL || strlen(filepath) == 0) {
@@ -292,20 +292,33 @@ int deleteFile(const char *filepath, const char *endDate, const char *endTime, i
 		}
 	}
 
-	// 절대경로로 입력되어 바로 삭제할 수 있는 경우
-	status = __deleteFile(filepath, endDate, endTime, iOption, rOption);
-	if (status <= 0) {
-		if (status < 0)
-			fprintf(stderr, "%s delete file error\n", filepath);
-		return status;
+	chdir(DIRECTORY);
+
+	// 절대경로
+	if (*filepath == '/') {
+		// 지정 디렉토리 이외의 디렉토리에서 삭제를 요구할 경우 에러
+		sprintf(absoluteFilepath, "%s/%s", cwd, DIRECTORY);
+		if (strstr(filepath, absoluteFilepath) == NULL) {
+			printf("Only file which be in the <%s>.\n", absoluteFilepath);
+			return 2;
+		}
+		strcpy(absoluteFilepath, filepath);
+	}
+	// 상대경로
+	else {
+		realpath(filepath, absoluteFilepath);
 	}
 
-	sprintf(relatedFilepath, "%s/%s", DIRECTORY, filepath);
-	if (__deleteFile(relatedFilepath, endDate, endTime, iOption, rOption) == 0)
-		return 0;
-	
-	fprintf(stderr, "%s doesn't exist\n", filepath);
-	return -1;
+	// 절대경로로 입력되어 바로 삭제할 수 있는 경우
+	status = __deleteFile(absoluteFilepath, endDate, endTime, iOption, rOption);
+	if (status < 0) {
+		fprintf(stderr, "%s delete file error\n", filepath);
+	} else if (status == 1) {
+		printf("file %s does not exist\n", filepath);
+	}
+
+	chdir("../");
+	return status;
 }
 
 int sendToTrash(const char *filepath) {

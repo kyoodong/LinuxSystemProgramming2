@@ -19,6 +19,11 @@ char termbuf[BUF_LEN][BUF_LEN];
 int termWidth, termHeight;
 pthread_mutex_t deletionThreadMutex = PTHREAD_MUTEX_INITIALIZER;
 
+extern int requestInput;
+extern char inputBuffer[BUF_LEN];
+extern pthread_mutex_t inputMutex;
+extern pthread_cond_t inputCond;
+
 int init() {
 	char *p;
 	pthread_t deletingThread;
@@ -35,6 +40,21 @@ int init() {
 	}
 }
 
+void getInputStream() {
+	pthread_mutex_lock(&inputMutex);
+	requestInput = 1;
+	pthread_cond_signal(&inputCond);
+	pthread_cond_wait(&inputCond, &inputMutex);
+	pthread_mutex_unlock(&inputMutex);
+}
+
+void releaseInputStream() {
+	pthread_mutex_lock(&inputMutex);
+	requestInput = 0;
+	pthread_cond_signal(&inputCond);
+	pthread_mutex_unlock(&inputMutex);
+}
+
 void* deleteThread() {
 	struct deletion_node *node, *tmp;
 	time_t curTime;
@@ -47,9 +67,10 @@ void* deleteThread() {
 			if (node->endTime <= curTime) {
 				tmp = node;
 
-				printf("%s\ncurTime = %ld\nendTime = %ld\n", node->filepath, curTime, node->endTime);
+				printf("[filename]: %s\ncurTime = %ld\nendTime = %ld\n", node->filepath, curTime, node->endTime);
 				// 이미 삭제된 경우
 				if (access(node->filepath, F_OK) != 0) {
+					printf("file %s is already deleted\n", node->filepath);
 					node = node->next;
 					removeDeletionNode(tmp);
 					continue;
@@ -57,15 +78,27 @@ void* deleteThread() {
 
 				// r 옵션 켜져있었으면 물어보고 삭제
 				if (node->rOption) {
-					printf("Delete [y/n]? ");
-					char c = getchar();
-
-					// 파일 삭제 안한다고하면 삭제 리스트에서만 제거
-					if (c == 'n') {
-						node = node->next;
-						removeDeletionNode(tmp);
-						continue;
+					int isDelete = 0;
+					while (1) {
+						printf("Delete [y/n]? ");
+						fflush(stdout);
+						getInputStream();
+						if (!strcmp(inputBuffer, "y") || !strcmp(inputBuffer, "Y")) {
+							isDelete = 1;
+							break;
+						}
+						if (!strcmp(inputBuffer, "n") || !strcmp(inputBuffer, "N")) {
+							printf("%s is not deleted\n", node->filepath);
+							isDelete = 0;
+							node = node->next;
+							removeDeletionNode(tmp);
+							break;
+						}
 					}
+					releaseInputStream();
+
+					if (!isDelete)
+						continue;
 				}
 
 				// 파일 삭제 후 삭제 리스트에서 제거
@@ -113,7 +146,6 @@ void clearInfoList() {
 		free(infoList);
 		infoList = next;
 	}
-	infoList = NULL;
 }
 
 void insertInfoNode(struct info_node *node) {
@@ -124,9 +156,12 @@ void insertInfoNode(struct info_node *node) {
 		return;
 	}
 
-	node->next = infoList;
-	infoList->prev = node;
-	infoList = node;
+	struct info_node *tmp = infoList;
+	while (tmp->next != NULL)
+		tmp = tmp->next;
+
+	tmp->next = node;
+	node->prev = tmp;
 }
 
 void removeDeletionNode(struct deletion_node *node) {
@@ -251,17 +286,10 @@ int __deleteFile(const char *filepath, const char *endDate, const char *endTime,
 
 int deleteFile(const char *filepath, const char *endDate, const char *endTime, int iOption, int rOption) {
 	char relatedFilepath[BUF_LEN];
-	struct dirent **dirList;
-	int count;
 	int status;
 
 	if (filepath == NULL || strlen(filepath) == 0) {
 		fprintf(stderr, "<filename> is empty\n");
-		return -1;
-	}
-
-	if ((count = scandir(cwd, &dirList, filterOnlyDirectory, NULL)) < 0) {
-		fprintf(stderr, "scandir error\n");
 		return -1;
 	}
 
@@ -274,32 +302,19 @@ int deleteFile(const char *filepath, const char *endDate, const char *endTime, i
 		}
 	}
 
+	// 절대경로로 입력되어 바로 삭제할 수 있는 경우
 	status = __deleteFile(filepath, endDate, endTime, iOption, rOption);
 	if (status <= 0) {
 		if (status < 0)
 			fprintf(stderr, "%s delete file error\n", filepath);
-		for (int i = 0; i < count; i++)
-			free(dirList[i]);
-		free(dirList);
 		return status;
 	}
 
-	for (int i = 0; i < count; i++) {
-		sprintf(relatedFilepath, "%s/%s", dirList[i]->d_name, filepath);
-
-		if (__deleteFile(relatedFilepath, endDate, endTime, iOption, rOption) == 1)
-			continue;
-	
-		for (int j = 0; j < count; j++)
-			free(dirList[j]);
-		free(dirList);
+	sprintf(relatedFilepath, "%s/%s", DIRECTORY, filepath);
+	if (__deleteFile(relatedFilepath, endDate, endTime, iOption, rOption) == 0)
 		return 0;
-	}
-
+	
 	fprintf(stderr, "%s doesn't exist\n", filepath);
-	for (int i = 0; i < count; i++)
-		free(dirList[i]);
-	free(dirList);
 	return -1;
 }
 
@@ -549,7 +564,6 @@ int recoverFile(const char *filepath, int lOption) {
 		free(fileList);
 	}
 
-
 	fseek(fp, 0, SEEK_END);
 	fileSize = ftell(fp);
 	count = 0;
@@ -615,12 +629,13 @@ int recoverFile(const char *filepath, int lOption) {
 
 	// 복구하고자 하는 파일이 이미 해당 디렉토리에 있는 경우 넘버링
 	if (access(buf, F_OK) == 0) {
+		index = 1;
 		while (1) {
-			index = 1;
 			strcpy(buf, infoNode->filepath);
 			sprintf(buf + strlen(buf), "/%d_%s", index, filename);
 			if (access(buf, F_OK) != 0)
 				break;
+			index++;
 		}
 	}
 
@@ -712,8 +727,6 @@ int __printTree(int top, int left, int *bottom, const char *filepath) {
 }
 
 int printTree() {
-	struct dirent **dirList;
-	int count;
 	int bottom = 0;
 
 	termWidth = termHeight = 0;
@@ -721,22 +734,15 @@ int printTree() {
 		for (int j = 0; j < BUF_LEN; j++)
 			termbuf[i][j] = ' ';
 
-	if ((count = scandir(".", &dirList, filterOnlyDirectory, alphasort)) < 0) {
-		fprintf(stderr, ". scandir error\n");
-		return -1;
-	}
+	int j;
+	for (j = 0; DIRECTORY[j] != '\0'; j++)
+		termbuf[bottom][j] = DIRECTORY[j];
 
-	for (int i = 0; i < count; i++) {
-		int j;
-		for (j = 0; dirList[i]->d_name[j] != '\0'; j++)
-			termbuf[bottom][j] = dirList[i]->d_name[j];
+	for (j = strlen(DIRECTORY); j < TAB_SIZE; j++) 
+		termbuf[bottom][j] = '-';
 
-		for (j = strlen(dirList[i]->d_name); j < TAB_SIZE; j++) 
-			termbuf[bottom][j] = '-';
-
-		if (__printTree(bottom, TAB_SIZE, &bottom, dirList[i]->d_name) == 0) {
-			sprintf(termbuf[bottom] + j, "[Empty dir]");
-		}
+	if (__printTree(bottom, TAB_SIZE, &bottom, DIRECTORY) == 0) {
+		sprintf(termbuf[bottom] + j, "[Empty dir]");
 	}
 
 	for (int h = 0; h <= termHeight; h++) {
@@ -746,8 +752,5 @@ int printTree() {
 		putchar('\n');
 	}
 
-	for (int i = 0; i < count; i++)
-		free(dirList[i]);
-	free(dirList);
 	return 0;
 }

@@ -2,11 +2,16 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <pthread.h>
 #include "prompt.h"
 #include "core.h"
 
 char command[10];
 char promptBuffer[BUF_LEN];
+int requestInput;
+char inputBuffer[BUF_LEN];
+pthread_mutex_t inputMutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t inputCond = PTHREAD_COND_INITIALIZER;
 
 char* commandList[6] = {
 	DELETE,
@@ -28,6 +33,30 @@ int printPrompt() {
 	printf("%s> ", STUDENT_ID);
 
 	while ((c = getchar()) != '\n' && c != EOF) {
+		if (requestInput) {
+			char t = c;
+
+			while (requestInput) {
+				pthread_mutex_lock(&inputMutex);
+				int tIndex = 0;
+				if (t != '\0')
+					inputBuffer[tIndex++] = t;
+
+				while ((t = getchar()) != '\n' && t != EOF) {
+					inputBuffer[tIndex++] = t;
+				}
+				inputBuffer[tIndex] = '\0';
+				t = '\0';
+				pthread_cond_signal(&inputCond);
+				pthread_cond_wait(&inputCond, &inputMutex);
+				pthread_mutex_unlock(&inputMutex);
+			}
+			
+			printf("%s> ", STUDENT_ID);
+			for (int i = 0; i < index; i++)
+				putchar(promptBuffer[i]);
+			continue;
+		}
 		promptBuffer[index++] = c;
 	}
 
@@ -41,6 +70,7 @@ int printPrompt() {
 	if (processCommand(promptBuffer) < 0) {
 		fprintf(stderr, "processCommand error\n");
 	}
+	promptBuffer[0] = '\0';
 }
 
 /**

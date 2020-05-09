@@ -13,10 +13,13 @@
 #include "core.h"
 
 char cwd[BUF_LEN];
+
+// 삭제 파일 예약 리스트
 struct deletion_node *deletionList;
+
+// 
 struct info_node *infoList;
-char termbuf[BUF_LEN][BUF_LEN];
-int termWidth, termHeight;
+
 pthread_mutex_t deletionThreadMutex = PTHREAD_MUTEX_INITIALIZER;
 
 extern int requestInput;
@@ -675,49 +678,60 @@ int ignoreParentAndSelfDirFilter(const struct dirent *dir) {
 }
 
 
-int __printTree(int top, int left, int *bottom, const char *filepath) {
+int __printTree(const char *filepath, int depth, int needIndent) {
 	struct dirent **fileList;
 	struct stat statbuf;
 	int count;
 	char buf[BUF_LEN];
-	char exp[10];
-	sprintf(exp, "|%%-%ds", TAB_SIZE - 1);
+	char filename[TAB_SIZE];
+	const char *fnamep;
+	char nameBlock[10];
+	char emptyBlock[10];
+	sprintf(nameBlock, "|%%-%ds", TAB_SIZE - 1);
+	sprintf(emptyBlock, "%%-%ds", TAB_SIZE);
 
+	fnamep = strrchr(filepath, '/') + 1;
+	if (fnamep == NULL)
+		fnamep = filepath;
+
+	strcpy(filename, fnamep);
+	stat(filepath, &statbuf);
+
+	// 파일인 경우
+	if (!S_ISDIR(statbuf.st_mode)) {
+		if (needIndent) {
+			for (int i = 0; i < depth; i++)
+				printf(emptyBlock, "");
+		}
+		printf(nameBlock, filename);
+		printf("\n");
+		return 0;
+	}
+
+	// 디렉토리인 경우
+
+	// 디렉토리 내부 파일 구조 탐색
 	if ((count = scandir(filepath, &fileList, ignoreParentAndSelfDirFilter, alphasort)) < 0) {
 		fprintf(stderr, "%s scandir error\n", filepath);
 		return -1;
 	}
 
+	if (count > 0) {
+		for (int i = strlen(filename); i < TAB_SIZE - 1; i++) {
+			filename[i] = '-';
+		}
+		filename[TAB_SIZE - 1] = '\0';
+	}
+
+	if (needIndent) {
+		for (int i = 0; i < depth; i++)
+			printf(emptyBlock, "");
+	}
+	printf(nameBlock, filename);
+
 	for (int i = 0; i < count; i++) {
 		sprintf(buf, "%s/%s", filepath, fileList[i]->d_name);
-		if (stat(buf, &statbuf) < 0) {
-			for (int j = 0; j < count; j++)
-				free(fileList[j]);
-			free(fileList);
-			fprintf(stderr, "%s stat error\n", buf);
-			return -1;
-		}
-
-		if (termWidth < left + strlen(fileList[i]->d_name))
-			termWidth = left + strlen(fileList[i]->d_name);
-
-		sprintf(*(termbuf + *bottom) + left, exp, fileList[i]->d_name);
-		//termbuf[*bottom][left + TAB_SIZE] = ' ';
-
-		if (S_ISDIR(statbuf.st_mode)) {
-			int j;
-			for (j = strlen(fileList[i]->d_name) + 1; j < TAB_SIZE; j++) 
-				termbuf[*bottom][left + j] = '-';
-			if (__printTree(*bottom, left + TAB_SIZE, bottom, buf) == 0) {
-				sprintf(termbuf[*bottom] + left + j, "[Empty dir]");
-				(*bottom)++;
-			}
-		} else {
-			(*bottom)++;
-		}
-		
-		if (termHeight < *bottom)
-			termHeight = *bottom;
+		__printTree(buf, depth + 1, i > 0);
 	}
 
 	for (int j = 0; j < count; j++)
@@ -727,30 +741,9 @@ int __printTree(int top, int left, int *bottom, const char *filepath) {
 }
 
 int printTree() {
-	int bottom = 0;
-
-	termWidth = termHeight = 0;
-	for (int i = 0; i < BUF_LEN; i++)
-		for (int j = 0; j < BUF_LEN; j++)
-			termbuf[i][j] = ' ';
-
-	int j;
-	for (j = 0; DIRECTORY[j] != '\0'; j++)
-		termbuf[bottom][j] = DIRECTORY[j];
-
-	for (j = strlen(DIRECTORY); j < TAB_SIZE; j++) 
-		termbuf[bottom][j] = '-';
-
-	if (__printTree(bottom, TAB_SIZE, &bottom, DIRECTORY) == 0) {
-		sprintf(termbuf[bottom] + j, "[Empty dir]");
-	}
-
-	for (int h = 0; h <= termHeight; h++) {
-		for (int w = 0; w <= termWidth; w++) {
-			putchar(termbuf[h][w]);
-		}
-		putchar('\n');
-	}
-
+	char buf[BUF_LEN];
+	sprintf(buf, "%s/%s", cwd, DIRECTORY);
+	__printTree(buf, 0, 0);
+	printf("\n");
 	return 0;
 }

@@ -9,7 +9,7 @@
 #define TIME_FORMAT "%Y-%m-%d %H:%M:%S"
 #define TIME_FORMAT_LEN 19
 #define DELETE_INTERVAL 1 
-#define TAB_SIZE 16
+#define TAB_SIZE 21
 #define BUF_LEN 1024
 #define DIRECTORY "dir"
 #define REL_DIRECTORY "./dir"

@@ -1,4 +1,4 @@
-ssu_mntr: clear main.o prompt.o core.o test daemon
+ssu_mntr: clear daemon main.o prompt.o core.o test
 	gcc main.o prompt.o core.o -o ssu_mntr -lpthread
 
 main.o: main.c
@@ -38,7 +38,6 @@ kill:
 
 daemon:
 	gcc daemon.c -o mdaemon
-	./mdaemon
 
 test:
 	rm -rf dir

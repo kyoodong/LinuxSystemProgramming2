@@ -32,9 +32,11 @@ int printPrompt() {
 	}
 
 	// @TODO: 디버깅용
+	/*
 	if (index == 0) {
 		sleep(10);
 	}
+	*/
 	promptBuffer[index] = '\0';
 	if (processCommand(promptBuffer) < 0) {
 		fprintf(stderr, "processCommand error\n");

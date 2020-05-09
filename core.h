@@ -8,7 +8,7 @@
 #define MAX_TRASH_INFO_SIZE (1024 * 2)
 #define TIME_FORMAT "%Y-%m-%d %H:%M:%S"
 #define TIME_FORMAT_LEN 19
-#define DELETE_INTERVAL 10 
+#define DELETE_INTERVAL 1 
 #define TAB_SIZE 16
 #define BUF_LEN 1024
 #define DIRECTORY "dir"

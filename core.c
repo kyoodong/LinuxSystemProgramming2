@@ -17,6 +17,7 @@ struct deletion_node *deletionList;
 struct info_node *infoList;
 char termbuf[BUF_LEN][BUF_LEN];
 int termWidth, termHeight;
+pthread_mutex_t deletionThreadMutex = PTHREAD_MUTEX_INITIALIZER;
 
 int init() {
 	char *p;
@@ -38,6 +39,7 @@ void* deleteThread() {
 	struct deletion_node *node, *tmp;
 	time_t curTime;
 	while (1) {
+		pthread_mutex_lock(&deletionThreadMutex);
 		node = deletionList;
 		curTime = time(NULL);
 		while (node != NULL) {
@@ -81,6 +83,7 @@ void* deleteThread() {
 				break;
 			}
 		}
+		pthread_mutex_unlock(&deletionThreadMutex);
 		sleep(DELETE_INTERVAL);
 	}
 }
@@ -127,6 +130,7 @@ void insertInfoNode(struct info_node *node) {
 }
 
 void removeDeletionNode(struct deletion_node *node) {
+	pthread_mutex_lock(&deletionThreadMutex);
 	// 루트
 	if (node->prev == NULL) {
 		deletionList = node->next;
@@ -134,6 +138,7 @@ void removeDeletionNode(struct deletion_node *node) {
 			deletionList->prev = NULL;
 
 		free(node);
+		pthread_mutex_unlock(&deletionThreadMutex);
 		return;
 	}
 
@@ -143,15 +148,18 @@ void removeDeletionNode(struct deletion_node *node) {
 		node->next->prev = node->prev;
 	}
 	free(node);
+	pthread_mutex_unlock(&deletionThreadMutex);
 }
 
 void insertDeletionNode(struct deletion_node *node) {
+	pthread_mutex_lock(&deletionThreadMutex);
 	struct deletion_node *tmp, *prev;
 
 	if (deletionList == NULL) {
 		node->prev = NULL;
 		node->next = NULL;
 		deletionList = node;
+		pthread_mutex_unlock(&deletionThreadMutex);
 		return;
 	}
 
@@ -170,6 +178,7 @@ void insertDeletionNode(struct deletion_node *node) {
 		node->next = deletionList;
 		deletionList->prev = node;
 		deletionList = node;
+		pthread_mutex_unlock(&deletionThreadMutex);
 		return;
 	}
 
@@ -179,6 +188,7 @@ void insertDeletionNode(struct deletion_node *node) {
 
 	if (node->next != NULL)
 		node->next->prev = node;
+	pthread_mutex_unlock(&deletionThreadMutex);
 }
 
 int filterOnlyDirectory(const struct dirent *info) {

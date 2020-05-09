@@ -34,7 +34,7 @@ clear:
 	rm -f log.txt
 
 kill:
-	killall -9 mdebug
+	killall -9 mdaemon mdebug
 
 daemon:
 	gcc daemon.c -o mdaemon

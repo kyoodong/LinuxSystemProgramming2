@@ -294,6 +294,13 @@ int __deleteFile(const char *filepath, const char *endDate, const char *endTime,
 	node->iOption = iOption;
 	node->rOption = rOption;
 	node->endTime = mktime(&tm);
+
+	if (node->endTime == -1) {
+		printf("year = %d\n mon %d\n wday %d\nyday %d\nmday %d\nhour %dmin %d\nsec %d\n",
+				tm.tm_year, tm.tm_mon, tm.tm_wday, tm.tm_yday, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+		printf("%lld\n", node->endTime);
+		return -1;
+	}
 	insertDeletionNode(node);
 	return 0;
 }
@@ -525,8 +532,8 @@ int sendToTrash(const char *filepath) {
 	size = getSize(buffer);
 
 	// 2KB 초과 시
-	if (size > MAX_INFO_SIZE) {
-		deleteOldTrashFile(size, MAX_INFO_SIZE);
+	if (size > MAX_TRASH_INFO_SIZE) {
+		deleteOldTrashFile(size, MAX_TRASH_INFO_SIZE);
 	}
 	return 0;
 }

@@ -296,9 +296,6 @@ int __deleteFile(const char *filepath, const char *endDate, const char *endTime,
 	node->endTime = mktime(&tm);
 
 	if (node->endTime == -1) {
-		printf("year = %d\n mon %d\n wday %d\nyday %d\nmday %d\nhour %dmin %d\nsec %d\n",
-				tm.tm_year, tm.tm_mon, tm.tm_wday, tm.tm_yday, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
-		printf("%lld\n", node->endTime);
 		return -1;
 	}
 	insertDeletionNode(node);
@@ -763,7 +760,8 @@ int recoverFile(const char *filepath, int lOption) {
 		infoNode = infoList;
 		int i = 0;
 		while (infoNode != NULL) {
-			printf("%d. %s\t\t%s\n", i + 1, infoNode->filepath, infoNode->deletionTime);
+			// @TODO: 파일명만 출력해야하나?
+			printf("%d. %s\t\t%s\n", i + 1, infoNode->filepath + strlen(cwd) + 2 + strlen(DIRECTORY), infoNode->deletionTime);
 			infoNode = infoNode->next;
 			i++;
 		}

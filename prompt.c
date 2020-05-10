@@ -61,18 +61,24 @@ int printPrompt() {
 	}
 
 	// @TODO: 디버깅용
+	/*
 	if (index == 0) {
 		return -1;
 	}
+	*/
 	promptBuffer[index] = '\0';
 	// @TODO: 디버깅용
-	printf("%s\n", promptBuffer);
+	//printf("%s\n", promptBuffer);
 
-	if (processCommand(promptBuffer) < 0) {
+	int status;
+	if ((status = processCommand(promptBuffer)) < 0) {
 		fprintf(stderr, "processCommand error\n");
 		return -1;
 	}
 	promptBuffer[0] = '\0';
+
+	if (status != 0)
+		return status;
 	return 0;
 }
 

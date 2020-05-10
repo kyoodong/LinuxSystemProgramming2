@@ -46,12 +46,10 @@ struct file* traversal(struct file *rootFile) {
 		}
 		else
 			file = file->parent;
-		syslog(LOG_DEBUG, "[traversal] return root %s", ret->filepath);
 		return ret;
 	}
 
 	if (file == NULL || file == &root) {
-		syslog(LOG_DEBUG, "[traversal] return NULL");
 		return NULL;
 	}
 
@@ -65,7 +63,6 @@ struct file* traversal(struct file *rootFile) {
 	else
 		file = file->parent;
 
-	syslog(LOG_DEBUG, "[traversal] return self %s", ret->filepath);
 	return ret;
 }
 
@@ -114,7 +111,7 @@ void delete(struct file *file) {
 		file->parent->first_child = file->next_sibling;
 	}
 
-	else if (file->next_sibling != NULL) {
+	if (file->next_sibling != NULL) {
 		file->next_sibling->prev_sibling = file->prev_sibling;
 	}
 
@@ -163,12 +160,12 @@ int init() {
 	fd = open("/dev/null", O_RDWR);
 	dup(0);
 	dup(0);
+	*/
 	return 0;
 }
 
 int ignoreParentAndSelfDirFilter(const struct dirent *dir) {
-	if (!strcmp(dir->d_name, ".") || !strcmp(dir->d_name, "..") ||
-			!strcmp(dir->d_name, ".git") || !strcmp(dir->d_name, "trash"))
+	if (!strcmp(dir->d_name, ".") || !strcmp(dir->d_name, ".."))
 		return 0;
 	return 1;
 }
@@ -220,46 +217,46 @@ int observe(struct file *parent, const char *filepath, int depth) {
 	int count;
 	struct file *file;
 
-	file = find(parent, filepath);
-	if (stat(filepath, &statbuf) < 0) {
-		syslog(LOG_INFO, "[observe] %s was deleted\n", filepath);
-		return 0;
+	if ((count = scandir(filepath, &dirList, ignoreParentAndSelfDirFilter, NULL)) < 0) {
+		syslog(LOG_ERR, "%s scandir error\n", filepath);
+		return -1;
 	}
-	syslog(LOG_DEBUG, "[observe] visit %s", filepath);
 
-	// 없던 파일이 생긴 경우
-	if (file == NULL) {
-		file = malloc(sizeof(struct file));
-		strcpy(file->filepath, filepath);
+	for (int i = 0; i < count; i++) {
+		sprintf(buf, "%s/%s", filepath, dirList[i]->d_name);
+		file = find(parent, buf);
+		if (stat(buf, &statbuf) < 0) {
+			syslog(LOG_INFO, "[observe] %s was deleted\n", buf);
+			return 0;
+		}
+		syslog(LOG_DEBUG, "[observe] visit %s", buf);
+
+		// 없던 파일이 생긴 경우
+		if (file == NULL) {
+			file = malloc(sizeof(struct file));
+			strcpy(file->filepath, buf);
+			file->is_visited = 1;
+			file->stat = statbuf;
+			insert(parent, file);
+
+			// 초기화 과정에서는 로그를 찍지 않음
+			if (!is_init) {
+				syslog(LOG_INFO, "[observe] New file %s is detected", file->filepath);
+				log_write(CREATE, buf);
+			}
+		}
+
 		file->is_visited = 1;
-		file->stat = statbuf;
-		insert(parent, file);
 
-		// 초기화 과정에서는 로그를 찍지 않음
-		if (!is_init) {
-			syslog(LOG_INFO, "[observe] New file %s is detected", file->filepath);
-			log_write(CREATE, filepath);
-		}
-	}
-
-	file->is_visited = 1;
-
-	// 디렉토리라면 하위 파일들도 관찰
-	if (S_ISDIR(statbuf.st_mode)) {
-		if ((count = scandir(filepath, &dirList, ignoreParentAndSelfDirFilter, NULL)) < 0) {
-			syslog(LOG_ERR, "%s scandir error\n", filepath);
-			return -1;
-		}
-
-		for (int i = 0; i < count; i++) {
-			sprintf(buf, "%s/%s", filepath, dirList[i]->d_name);
+		// 디렉토리라면 하위 파일들도 관찰
+		if (S_ISDIR(statbuf.st_mode)) {
 			observe(file, buf, depth + 1);
 		}
-
-		for (int i = 0; i < count; i++)
-			free(dirList[i]);
-		free(dirList);
 	}
+
+	for (int i = 0; i < count; i++)
+		free(dirList[i]);
+	free(dirList);
 
 	return 0;
 }
@@ -270,12 +267,12 @@ void daemon_main() {
 	struct file *file;
 
 	root.is_visited = 1;
-	strcpy(root.filepath, "root");
+	strcpy(root.filepath, DIRECTORY);
 	openlog("[SSUMonitor]", LOG_PID, LOG_LPR);
 
 	syslog(LOG_DEBUG, "%d\n", getpid());
 	
-	if ((fp = fopen("log.txt", "w+")) == NULL) {
+	if ((fp = fopen("log.txt", "a")) == NULL) {
 		syslog(LOG_ERR, "log.txt open error %m\n");
 		exit(1);
 	}

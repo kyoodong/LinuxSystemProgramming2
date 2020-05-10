@@ -160,7 +160,6 @@ int init() {
 	fd = open("/dev/null", O_RDWR);
 	dup(0);
 	dup(0);
-	*/
 	return 0;
 }
 

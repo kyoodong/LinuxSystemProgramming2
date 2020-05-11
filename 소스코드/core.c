@@ -838,17 +838,16 @@ int printSize(const char *filepath, int dOption) {
 		sprintf(buf, "./%s", filepath);
 	}
 
-	// depth 가 1 이하라면 디렉토리 크기를 구해서 바로 출력해줌
-	if (dOption <= 1) {
-		long size = getSize(buf);
-		if (size < 0) {
-			fprintf(stderr, "%s getSize error\n", buf);
-			return -1;
-		}
-		printf("%ld\t%s\n", size, buf);
+	long size = getSize(buf);
+	if (size < 0) {
+		fprintf(stderr, "%s getSize error\n", buf);
+		return -1;
 	}
-	else
+	printf("%ld\t%s\n", size, buf);
+	
+	if (dOption > 1) {
 		__printSize(buf, 0, dOption - 1);
+	}
 	return 0;
 }
 

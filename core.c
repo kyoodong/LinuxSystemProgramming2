@@ -126,6 +126,28 @@ void* deleteThread() {
 	}
 }
 
+void removeInfoNodeByName(const char* name) {
+	struct info_node *node, *tmp;
+	char *filename;
+
+	node = infoList;
+	while (node != NULL) {
+		filename = strrchr(node->filepath, '/');
+		if (filename == NULL)
+			filename = node->filepath;
+		else
+			filename++;
+
+		if (!strcmp(filename, name)) {
+			tmp = node;
+			node = node->next;
+			removeInfoNode(tmp);
+		} else {
+			node = node->next;
+		}
+	}
+}
+
 void removeInfoNode(struct info_node *node) {
 	// 루트
 	if (node->prev == NULL) {
@@ -398,78 +420,68 @@ int deleteOldTrashFile(int curSize, int maxSize) {
 	}
 
 	while (curSize > maxSize) {
-		printf("현재 용량 : %d\n", curSize);
+		printf("Current trash info size : %d\n", curSize);
+
+		// 오래 삭제된 순으로 insert 하게 되어있어서
+		// head 인 infoList가 항상 가장 오래전에 삭제된 파일임
 		filename = strrchr(infoList->filepath, '/') + 1;
-		int num = 2;
-		sprintf(buf, "%s/%s/%s_1", cwd, TRASH_FILES, filename);
 
-		if (stat(buf, &statbuf) < 0) {
-			fprintf(stderr, "[deleteOldTrashFile] %s stat error\n", buf);
-			for (int j = 0; j < count; j++)
-				free(fileList[j]);
-			free(fileList);
-			clearInfoList();
-			return -1;
-		}
+		for (int i = 1;;i++) {
+			sprintf(buf, "%s/%s/%s_%d", cwd, TRASH_FILES, filename, i);
 
-		num = strlen(infoList->filepath) + strlen(infoList->deletionTime) + strlen(infoList->modificationTime) + 11;
-		curSize -= num;
-
-		// @TODO: 폴더 삭제 예외처리
-		remove(buf);
-		char buf2[BUF_LEN];
-		
-		while (1) {
-			sprintf(buf, "%s/%s/%s_%d", cwd, TRASH_FILES, filename, num);
 			if (access(buf, F_OK) != 0)
-			   break;
+				break;
 
-			sprintf(buf2, "%s/%s/%s_%d", cwd, TRASH_FILES, filename, num - 1);
-			rename(buf, buf2);
-			num++;
+			if (removeDir(buf) < 0) {
+				for (int j = 0; j < count; j++)
+					free(fileList[j]);
+				free(fileList);
+				clearInfoList();
+				return -1;
+			}
 		}
 
 		sprintf(buf, "%s/%s/%s", cwd, TRASH_INFO, filename);
-		if ((fp = fopen(buf, "w+")) < 0) {
-			fprintf(stderr, "[deleteOldTrashFile] %s fopen error\n", buf);
-			for (int i = 0; i < count; i++)
-				free(fileList[i]);
-			free(fileList);
-			clearInfoList();
-			return -1;
-		}
-
-		printf("%s 삭제... 현재 용량 : %d\n", buf, curSize);
-		fseek(fp, 0, SEEK_END);
-		size = ftell(fp);
-
-		fseek(fp, 0, SEEK_SET);
-		fgets(buf, sizeof(buf), fp);
-
-		struct info_node t;
-		readTrashInfo(fp, &t);
-		int count = 0;
-		while (ftell(fp) < size) {
-			count++;
-			readTrashInfo(fp, &t);
-			fprintf(fp, "%s\nD : %s\nM : %s\n", t.filepath, t.deletionTime, t.modificationTime);
-		}
-
-		if (count == 0) {
-			fclose(fp);
-			sprintf(buf, "%s/%s/%s", cwd, TRASH_INFO, filename);
-			remove(buf);
-		} else {
-			fclose(fp);
-		}
-
-		removeInfoNode(infoList);
+		stat(buf, &statbuf);
+		curSize -= statbuf.st_size;
+		removeInfoNodeByName(filename);
+		remove(buf);
+		printf("Delete %s\n", filename);
 	}
+	printf("Current trash info size : %d\n", curSize);
 
 	for (int i = 0; i < count; i++)
 		free(fileList[i]);
 	free(fileList);
 	clearInfoList();
+	return 0;
+}
+
+int removeDir(const char *filepath) {
+	struct stat statbuf;
+	DIR *dir;
+	struct dirent *dirent;
+	char buf[BUF_LEN];
+
+	if (stat(filepath, &statbuf) < 0) {
+		fprintf(stderr, "[removeDir] %s stat error\n", filepath);
+		return -1;
+	}
+
+	// 디렉토리인 경우 하위 파일들을 먼저 삭제
+	if (S_ISDIR(statbuf.st_mode)) {
+		dir = opendir(filepath);
+		while ((dirent = readdir(dir)) != NULL) {
+			if (!strcmp(dirent->d_name, ".") || !strcmp(dirent->d_name, ".."))
+				continue;
+
+			sprintf(buf, "%s/%s", filepath, dirent->d_name);
+			removeDir(buf);
+		}
+	}
+
+	// 삭제
+	remove(filepath);
 	return 0;
 }
 
@@ -767,7 +779,6 @@ int recoverFile(const char *filepath, int lOption) {
 		infoNode = infoList;
 		int i = 0;
 		while (infoNode != NULL) {
-			// @TODO: 파일명만 출력해야하나?
 			printf("%d. %s\t\t%s\n", i + 1, strrchr(infoNode->filepath, '/') + 1, infoNode->deletionTime);
 			infoNode = infoNode->next;
 			i++;

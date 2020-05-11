@@ -30,6 +30,9 @@ struct info_node {
 
 int readTrashInfo(FILE *fp, struct info_node *infoNode);
 int getSize(const char *dirpath);
+int removeDir(const char *filepath);
+void removeInfoNodeByName(const char* name);
+void removeInfoNode(struct info_node *node);
 
 void* deleteThread();
 void removeDeletionNode(struct deletion_node *node);

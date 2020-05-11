@@ -27,24 +27,27 @@ struct info_node {
 	struct info_node *next, *prev;
 };
 
-int readTrashInfo(FILE *fp, struct info_node *infoNode);
-int getSize(const char *dirpath);
-int removeDir(const char *filepath);
+int init();
+void getInputStream();
+void releaseInputStream();
+void* deleteThread();
 void removeInfoNodeByName(const char* name);
 void removeInfoNode(struct info_node *node);
-
-void* deleteThread();
+void clearInfoList();
+void insertInfoNode(struct info_node *node);
 void removeDeletionNode(struct deletion_node *node);
 void insertDeletionNode(struct deletion_node *node);
-int deleteFile(const char *filename, const char *endDate, const char *endTime, int iOption, int rOption); 
-
-int init();
-int sendToTrash(const char *filepath);
+int filterOnlyDirectory(const struct dirent *info);
 int deleteFile(const char *filepath, const char *endDate, const char *endTime, int iOption, int rOption);
+int deleteOldTrashFile(int curSize, int maxSize);
+int removeDir(const char *filepath);
+int sendToTrash(const char *filepath);
+int getSize(const char *dirpath);
 int printSize(const char *filepath, int dOption);
+int getIndex(const char *filepath);
+int endIndexSort(const struct dirent **left, const struct dirent **right);
+int readTrashInfo(FILE *fp, struct info_node *infoNode);
 int recoverFile(const char *filepath, int lOption);
-void clearInfoList();
-int printTree();
-int filterHiddenFile(const struct dirent *dir); 
 int ignoreParentAndSelfDirFilter(const struct dirent *dir);
+int printTree();
 #endif

@@ -27,11 +27,15 @@ extern char inputBuffer[BUF_LEN];
 extern pthread_mutex_t inputMutex;
 extern pthread_cond_t inputCond;
 
+/**
+  core.c 코드 사용 전 초기화 함수
+  */
 int init() {
 	char *p;
 	pthread_t deletingThread;
 	int threadId;
 
+	// 작업 디렉토리 얻어옴
 	getcwd(cwd, sizeof(cwd));
 
 	// 삭제 리스트 검사하는 스레드 생성
@@ -43,6 +47,10 @@ int init() {
 	}
 }
 
+/**
+  작업 스레드에서 입력을 받기 위해 prompt 사용권을 얻어오는 함수
+  삭제 예약 처리 시 -r 옵션으로 삭제 여부를 다시 물을 때 사용함
+  */
 void getInputStream() {
 	pthread_mutex_lock(&inputMutex);
 	requestInput = 1;
@@ -51,6 +59,9 @@ void getInputStream() {
 	pthread_mutex_unlock(&inputMutex);
 }
 
+/**
+  작업 스레드에서 입력을 마치고 prompt 사용권을 메인 스레드에게 돌려주는 함수
+  */
 void releaseInputStream() {
 	pthread_mutex_lock(&inputMutex);
 	requestInput = 0;
@@ -58,6 +69,9 @@ void releaseInputStream() {
 	pthread_mutex_unlock(&inputMutex);
 }
 
+/**
+  삭제 예약 파일들을 삭제 시간이 되었을 때 삭제하는 스레드
+  */
 void* deleteThread() {
 	struct deletion_node *node, *tmp;
 	struct tm *tm;
@@ -65,8 +79,12 @@ void* deleteThread() {
 	char curTime[50];
 
 	while (1) {
+		// 작업스레드의 파일 삭제 작업과 메인 스레드의 파일 삭제 작업이 동시에 이루어지면
+		// 꼬일 수 있으므로 이를 방지하기 위함
 		pthread_mutex_lock(&deletionThreadMutex);
 		node = deletionList;
+
+		// 현재 시간 세팅
 		t = time(NULL);
 		tm = localtime(&t);
 		strftime(curTime, sizeof(curTime), TIME_FORMAT, tm);
@@ -88,42 +106,55 @@ void* deleteThread() {
 				// r 옵션 켜져있었으면 물어보고 삭제
 				if (node->rOption) {
 					int isDelete = 0;
+
+					// y, n 둘 중 하나를 제대로 입력할 때까지 반복
 					while (1) {
 						printf("Delete [y/n]? ");
 						fflush(stdout);
 						getInputStream();
+
+						// 삭제 함
 						if (!strcmp(inputBuffer, "y") || !strcmp(inputBuffer, "Y")) {
 							isDelete = 1;
 							break;
 						}
+
+						// 삭제 안함
 						if (!strcmp(inputBuffer, "n") || !strcmp(inputBuffer, "N")) {
 							printf("%s is not deleted\n", node->filepath);
 							isDelete = 0;
-							node = node->next;
-							removeDeletionNode(tmp);
 							break;
 						}
 					}
 					releaseInputStream();
 
-					if (!isDelete)
+					// 삭제하지 않는 경우 다음 노드로 이동
+					if (!isDelete) {
+						node = node->next;
+						removeDeletionNode(tmp);
 						continue;
+					}
 				}
 
 				// 파일 삭제 후 삭제 리스트에서 제거
 				if (node->iOption) {
+					// 바로 삭제
 					if (remove(node->filepath) < 0) {
-						printf("Cannot delete %s\n", node->filepath);
+						printf("[DeletionThread] Cannot delete %s\n", node->filepath);
 					}	
 				} else {
+					// 휴지통으로 보내기
 					if (sendToTrash(node->filepath) < 0) {
-						fprintf(stderr, "sendToTrash error\n");
+						fprintf(stderr, "[DeletionThread] sendToTrash error\n");
 						exit(1);
 					}
 				}
 				node = node->next;
 				removeDeletionNode(tmp);
-			} else {
+			}
+			
+			// 정렬된 상태라 아직 삭제시간이 안된 노드를 발견하면 바로 반복문 중단
+			else {
 				break;
 			}
 		}
@@ -132,18 +163,25 @@ void* deleteThread() {
 	}
 }
 
+/**
+  휴지통 info노드를 파일명으로 삭제하는 함수
+  @param name 삭제하고싶은 노드들의 파일명
+  path가 아니라 name 인것에 주의
+  */
 void removeInfoNodeByName(const char* name) {
 	struct info_node *node, *tmp;
 	char *filename;
 
 	node = infoList;
 	while (node != NULL) {
+		// 파일 이름 추출
 		filename = strrchr(node->filepath, '/');
 		if (filename == NULL)
 			filename = node->filepath;
 		else
 			filename++;
 
+		// 파일 이름이 지우고자 하는 name 과 같다면 삭제
 		if (!strcmp(filename, name)) {
 			tmp = node;
 			node = node->next;
@@ -154,6 +192,10 @@ void removeInfoNodeByName(const char* name) {
 	}
 }
 
+/**
+  특정 info 노드를 infoList로부터 삭제하는 함수
+  @param node 삭제할 info 노드
+  */
 void removeInfoNode(struct info_node *node) {
 	// 루트
 	if (node->prev == NULL) {
@@ -172,6 +214,9 @@ void removeInfoNode(struct info_node *node) {
 	free(node);
 }
 
+/**
+  infoList 를 초기화시키는 함수
+  */
 void clearInfoList() {
 	struct info_node *next;
 	while (infoList != NULL) {
@@ -181,7 +226,12 @@ void clearInfoList() {
 	}
 }
 
+/**
+  infoList에 노드 하나를 추가하는 함수
+  @param node 추가할 노드
+  */
 void insertInfoNode(struct info_node *node) {
+	// 루트
 	if (infoList == NULL) {
 		node->prev = NULL;
 		node->next = NULL;
@@ -190,7 +240,9 @@ void insertInfoNode(struct info_node *node) {
 	}
 
 	struct info_node *tmp = infoList;
-	if (strcmp(tmp->filepath, node->filepath) > 0) {
+
+	// deletionTime (삭제시간)을 기준으로 오름차순 삽입정렬
+	if (strcmp(tmp->deletionTime, node->deletionTime) > 0) {
 		node->next = tmp;
 		node->prev = NULL;
 		tmp->prev = node;
@@ -198,8 +250,9 @@ void insertInfoNode(struct info_node *node) {
 		return;
 	}
 
+	// deletionTime (삭제시간)을 기준으로 오름차순 삽입정렬
 	while (tmp->next != NULL) {
-		if (strcmp(tmp->filepath, node->filepath) > 0)
+		if (strcmp(tmp->deletionTime, node->deletionTime) > 0)
 			break;
 		tmp = tmp->next;
 	}
@@ -208,6 +261,10 @@ void insertInfoNode(struct info_node *node) {
 	node->prev = tmp;
 }
 
+/**
+  deletionList 에서 노드를 삭제하는 함수
+  @param node 삭제할 노드
+  */
 void removeDeletionNode(struct deletion_node *node) {
 	pthread_mutex_lock(&deletionThreadMutex);
 	// 루트
@@ -230,10 +287,15 @@ void removeDeletionNode(struct deletion_node *node) {
 	pthread_mutex_unlock(&deletionThreadMutex);
 }
 
+/**
+  deletionList 에 노드를 추가하는 함수
+  @param nodw 추가할 노드
+  */
 void insertDeletionNode(struct deletion_node *node) {
 	pthread_mutex_lock(&deletionThreadMutex);
 	struct deletion_node *tmp, *prev;
 
+	// 루트
 	if (deletionList == NULL) {
 		node->prev = NULL;
 		node->next = NULL;
@@ -244,6 +306,8 @@ void insertDeletionNode(struct deletion_node *node) {
 
 	tmp = deletionList;
 	prev = NULL;
+
+	// endTime(삭제 예정 시간)을 기준으로 오름차순 삽입 정렬
 	while (tmp->endTime < node->endTime) {
 		prev = tmp;
 		tmp = tmp->next;
@@ -270,10 +334,15 @@ void insertDeletionNode(struct deletion_node *node) {
 	pthread_mutex_unlock(&deletionThreadMutex);
 }
 
+/**
+  디렉토리만 scan 하는 필터
+  @param info scandir 함수의 세 번째 인자에서 넘겨주는 인자
+  @return 디렉토리라면 1, 아니면 0
+  */
 int filterOnlyDirectory(const struct dirent *info) {
 	struct stat statbuf;
 
-	if (!strcmp(info->d_name, ".") || !strcmp(info->d_name, "..") || !strcmp(info->d_name, TRASH) || !strcmp(info->d_name, ".git"))
+	if (!strcmp(info->d_name, ".") || !strcmp(info->d_name, ".."))
 		return 0;
 
 	if (stat(info->d_name, &statbuf) < 0) {
@@ -284,18 +353,29 @@ int filterOnlyDirectory(const struct dirent *info) {
 	return S_ISDIR(statbuf.st_mode);
 }
 
-
-int __deleteFile(const char *filepath, const char *endDate, const char *endTime, int iOption, int rOption) {
+/**
+  파일 삭제하는 실질적인 함수
+  @param filepath 삭제 할 파일 경로
+  @param endDate 삭제 예정 일자, NULL 인 경우 즉시 삭제
+  @param endTime 삭제 예정 시간, NULL 인 경우 즉시 삭제
+  @param iOption -i 옵션 on/off 여부, 삭제 시 휴지통으로 보내지 않고 바로 지우는 옵션
+  @param rOption -r 옵션 on/off 여부, 삭제 시 다시 한 번 확인하는 옵션
+  @return 삭제 성공 시 0, 실패 시 -1, 없는 파일을 삭제하려고 한 경우 1
+  */
+static int __deleteFile(const char *filepath, const char *endDate, const char *endTime, int iOption, int rOption) {
 	char buffer[BUF_LEN];
 	struct deletion_node *node;
 	struct tm tm;
 
 	// 파일이 해당 서브디렉토리에 없으면 건너뜀
-	if (access(filepath, F_OK) != 0)
+	if (access(filepath, F_OK) != 0) {
+		fprintf(stderr, "File %s is not exist.\n", filepath);
 		return 1;
+	}
 
 	// 즉시 삭제
 	if (endDate == NULL || endTime == NULL || strlen(endDate) == 0 || strlen(endTime) == 0) {
+		// 다시 묻기
 		if (rOption) {
 			printf("Delete [y/n]? ");
 			char c = getchar();
@@ -304,12 +384,16 @@ int __deleteFile(const char *filepath, const char *endDate, const char *endTime,
 				return 0;
 		}
 
+		// 즉시 삭제
 		if (iOption) {
 			if (remove(filepath) < 0) {
 				printf("Cannot delete %s\n", filepath);
 				return 0;
 			}
-		} else {
+		}
+		
+		// 휴지통으로 보내기
+		else {
 			if (sendToTrash(filepath) < 0) {
 				fprintf(stderr, "%s send to trash error\n", filepath);
 				return -1;
@@ -319,28 +403,40 @@ int __deleteFile(const char *filepath, const char *endDate, const char *endTime,
 	}
 
 	// 지정된 시간에 삭제
-	sprintf(buffer, "%s %s", endDate, endTime);
 	node = calloc(1, sizeof(struct deletion_node));
 	node->iOption = iOption;
 	node->rOption = rOption;
-	strcpy(node->endTime, buffer);
+	sprintf(node->endTime, "%s %s", endDate, endTime);
 	strcat(node->endTime, ":00");
 	strcpy(node->filepath, realpath(filepath, buffer));
+
+	// 리스트 추가
 	insertDeletionNode(node);
 	return 0;
 }
 
+/**
+  파일 삭제하는 함수
+  @param filepath 삭제 할 파일 경로
+  @param endDate 삭제 예정 일자, NULL 인 경우 즉시 삭제
+  @param endTime 삭제 예정 시간, NULL 인 경우 즉시 삭제
+  @param iOption -i 옵션 on/off 여부, 삭제 시 휴지통으로 보내지 않고 바로 지우는 옵션
+  @param rOption -r 옵션 on/off 여부, 삭제 시 다시 한 번 확인하는 옵션
+  @return 삭제 성공 시 0, 에러 시 -1, 없는 파일을 삭제하려고 한 경우 1
+  */
 int deleteFile(const char *filepath, const char *endDate, const char *endTime, int iOption, int rOption) {
 	char absoluteFilepath[BUF_LEN];
 	int status;
 
+	pthread_mutex_lock(&deletionThreadMutex);
 	if (filepath == NULL || strlen(filepath) == 0) {
 		fprintf(stderr, "<filename> is empty\n");
+		pthread_mutex_unlock(&deletionThreadMutex);
 		return -1;
 	}
 
-	// trash 파일이 있는지 검사하여 없으면 생성
 	if (!iOption) {
+		// trash 파일이 있는지 검사하여 없으면 생성
 		if (access(TRASH, F_OK) != 0) {
 			mkdir(TRASH, 0777);
 			mkdir(TRASH_INFO, 0777);
@@ -356,6 +452,7 @@ int deleteFile(const char *filepath, const char *endDate, const char *endTime, i
 		sprintf(absoluteFilepath, "%s/%s", cwd, DIRECTORY);
 		if (strstr(filepath, absoluteFilepath) == NULL) {
 			printf("Only file which be in the <%s>.\n", absoluteFilepath);
+			pthread_mutex_unlock(&deletionThreadMutex);
 			return 2;
 		}
 		strcpy(absoluteFilepath, filepath);
@@ -365,7 +462,7 @@ int deleteFile(const char *filepath, const char *endDate, const char *endTime, i
 		realpath(filepath, absoluteFilepath);
 	}
 
-	// 절대경로로 입력되어 바로 삭제할 수 있는 경우
+	// 삭제
 	status = __deleteFile(absoluteFilepath, endDate, endTime, iOption, rOption);
 	if (status < 0) {
 		fprintf(stderr, "%s delete file error\n", filepath);
@@ -374,9 +471,16 @@ int deleteFile(const char *filepath, const char *endDate, const char *endTime, i
 	}
 
 	chdir("../");
+	pthread_mutex_unlock(&deletionThreadMutex);
 	return status;
 }
 
+/**
+  오래된 trash info 파일을 삭제해주는 함수
+  @param curSize 현재 trash/info 디렉토리 용량
+  @param maxSize 허용된 최대 trash/info 디렉토리 용량 (2KB)
+  @return 성공 시 0, 실패 시 -1
+  */
 int deleteOldTrashFile(int curSize, int maxSize) {
 	char buf[BUF_LEN];
 	struct dirent **fileList;
@@ -388,6 +492,8 @@ int deleteOldTrashFile(int curSize, int maxSize) {
 	char *filename;
 
 	sprintf(buf, "%s/%s", cwd, TRASH_INFO);
+
+	// .  ..  디렉토리를 제외한 모든 info 파일을 스캔
 	if ((count = scandir(buf, &fileList, ignoreParentAndSelfDirFilter, NULL)) < 0) {
 		fprintf(stderr, "deleteOldTrashFile error\n");
 		return -1;
@@ -411,6 +517,8 @@ int deleteOldTrashFile(int curSize, int maxSize) {
 		fseek(fp, 0, SEEK_SET);
 		fgets(buf, sizeof(buf), fp);
 
+		// 모든 info 파일을 읽으면서 infoList 를 구축
+		// insert 시 deletionTime(삭제시간)을 기준으로 오름차순 정렬되는 삽입 정렬 이용
 		while (ftell(fp) < size) {
 			infoNode = calloc(1, sizeof(struct info_node));
 			readTrashInfo(fp, infoNode);
@@ -427,12 +535,14 @@ int deleteOldTrashFile(int curSize, int maxSize) {
 		// head 인 infoList가 항상 가장 오래전에 삭제된 파일임
 		filename = strrchr(infoList->filepath, '/') + 1;
 
+		// 파일명이 같은 파일들을 다 삭제
 		for (int i = 1;;i++) {
 			sprintf(buf, "%s/%s/%s_%d", cwd, TRASH_FILES, filename, i);
 
 			if (access(buf, F_OK) != 0)
 				break;
 
+			// 디렉토리여도 삭제
 			if (removeDir(buf) < 0) {
 				for (int j = 0; j < count; j++)
 					free(fileList[j]);
@@ -444,8 +554,14 @@ int deleteOldTrashFile(int curSize, int maxSize) {
 
 		sprintf(buf, "%s/%s/%s", cwd, TRASH_INFO, filename);
 		stat(buf, &statbuf);
+
+		// 삭제된 info 파일만큼의 용량이 확보
 		curSize -= statbuf.st_size;
+
+		// 리스트에서 제거
 		removeInfoNodeByName(filename);
+
+		// info 파일도 삭제
 		remove(buf);
 		printf("Delete %s\n", filename);
 	}
@@ -458,6 +574,12 @@ int deleteOldTrashFile(int curSize, int maxSize) {
 	return 0;
 }
 
+/**
+  디렉토리도 삭제할 수 있는 함수
+  @param filepath 삭제하고자 하는 파일의 경로
+  @return 성공 시 0, 에러 시 -1
+  파일이 일반 파일이면 바로 삭제하고, 디렉토리면 재귀적으로 하위 파일들을 모두 삭제한 뒤 삭제
+  */
 int removeDir(const char *filepath) {
 	struct stat statbuf;
 	DIR *dir;
@@ -486,6 +608,11 @@ int removeDir(const char *filepath) {
 	return 0;
 }
 
+/**
+  파일을 휴지통에 보내는 함수
+  @param filepath 휴지통에 보낼 파일 경로
+  @return 성공 시 0, 실패 시 -1
+  */
 int sendToTrash(const char *filepath) {
 	char *p;
 	const char *filename;
@@ -504,6 +631,7 @@ int sendToTrash(const char *filepath) {
 	else
 		filename++;
 
+	// 해당 파일명을 가진 info 파일을 만듦
 	sprintf(buffer, "%s/%s/%s", cwd, TRASH_INFO, filename);
 	if ((fp = fopen(buffer, "a")) == NULL) {
 		fprintf(stderr, "%s open error", buffer);
@@ -521,14 +649,17 @@ int sendToTrash(const char *filepath) {
 		fprintf(fp, "[Trash info]\n");
 	}
 
-	// buffer 에 휴지통 파일 path 기록
+	// 파일 path 기록
 	fprintf(fp, "%s\n", realpath(filepath, buffer));
 
 	t = time(NULL);
 	timeinfo = localtime(&t);
 	strftime(buffer2, sizeof(buffer2), TIME_FORMAT, timeinfo);
+
+	// 삭제 시간 기록
 	fprintf(fp, "D : %s\n", buffer2);
 
+	// trash/files 에 같은 이름의 파일이 있을 수 있으니 겹치지 않게 넘버링
 	for (int i = 1;;i++) {
 		sprintf(buffer, "%s/%s/%s_%d", cwd, TRASH_FILES, filename, i);
 		if (access(buffer, F_OK) != 0)
@@ -537,6 +668,8 @@ int sendToTrash(const char *filepath) {
 
 	timeinfo = localtime(&statbuf.st_mtime);
 	strftime(buffer2, sizeof(buffer2), TIME_FORMAT, timeinfo);
+
+	// 수정 시간 기록
 	fprintf(fp, "M : %s\n", buffer2);
 
 	// 파일을 휴지통으로 이동
@@ -555,6 +688,11 @@ int sendToTrash(const char *filepath) {
 	return 0;
 }
 
+/**
+  디렉토리의 크기를 계산해주는 함수
+  @param dirpath 디렉토리의 경로
+  @return 성공 시 파일 및 디렉토리의 크기, 에러 시 -1
+  */
 int getSize(const char *dirpath) {
 	char buf[BUF_LEN];
 	struct dirent **dirList = NULL;
@@ -572,13 +710,17 @@ int getSize(const char *dirpath) {
 		sprintf(buf, "%s/%s", dirpath, dirList[i]->d_name);
 		stat(buf, &statbuf);
 
+		// 디렉토리라면 재귀적으로 그 크기를 구하여 size 에 더함
 		if (S_ISDIR(statbuf.st_mode)) {
 			if ((tmp = getSize(buf)) < 0) {
 				fprintf(stderr, "%s getSize error\n", buf);
 				return -1;
 			}
 			size += tmp;
-		} else {
+		}
+		
+		// 파일이라면 바로 그 크기를 size 에 더함
+		else {
 			size += statbuf.st_size;
 		}
 	}
@@ -592,7 +734,14 @@ int getSize(const char *dirpath) {
 	return size;
 }
 
-int __printSize(const char *filepath, int curDepth, int depth) {
+/**
+  size 명령어를 실질적으로 처리하는 함수
+  @param filepath 용량을 출력할 파일의 경로
+  @param curDepth 현재 파일의 깊이
+  @param depth 최대 깊이
+  @return 성공 시 파일 및 디렉토리의 용량, 실패 시 -1
+  */
+static int __printSize(const char *filepath, int curDepth, int depth) {
 	char buf[BUF_LEN];
 	struct dirent **dirList;
 	struct stat statbuf;
@@ -602,11 +751,13 @@ int __printSize(const char *filepath, int curDepth, int depth) {
 	if (curDepth == depth)
 		return 0;
 
+	// .  .. 디렉토리 빼고 모든 파일 스캔 (파일 이름 정렬)
 	if ((count = scandir(filepath, &dirList, ignoreParentAndSelfDirFilter, alphasort)) < 0) {
 		fprintf(stderr, "%s scandir error\n", filepath);
 		return -1;
 	}
 
+	// 빈 디렉토리인 경우
 	if (count == 0) {
 		printf("0\t%s\n", filepath);
 		return 0;
@@ -619,19 +770,30 @@ int __printSize(const char *filepath, int curDepth, int depth) {
 		sprintf(buf, "%s/%s", filepath, dirList[i]->d_name);
 		if (stat(buf, &statbuf) < 0) {
 			fprintf(stderr, "%s stat error\n", buf);
+			for (int j = 0; j < count; j++)
+				free(dirList[j]);
+			free(dirList);
 			return -1;
 		}
 
 		// 디렉토리인 경우
 		if (S_ISDIR(statbuf.st_mode)) {
+			// depth 여유가 있는 경우 하위 파일들까지 출력
 			if (curDepth + 1 < depth) {
 				if ((tmp = __printSize(buf, curDepth + 1, depth)) < 0) {
 					return -1;
 				}
 				size += tmp;
-			} else {
+			}
+			
+			// 최대 depth 에 다다라서 더 이상 출력할 수 없는 경우
+			else {
+				// 그 크기만을 구해서 출력해줌
 				if ((tmp = getSize(buf)) < 0) {
 					fprintf(stderr, "%s getSize error\n", buf);
+					for (int j = 0; j < count; j++)
+						free(dirList[j]);
+					free(dirList);
 					return -1;
 				}
 
@@ -639,6 +801,8 @@ int __printSize(const char *filepath, int curDepth, int depth) {
 				printf("%ld\t%s\n", tmp, buf);
 			}
 		}
+
+		// 파일인 경우 바로 출력
 		else {
 			printf("%ld\t%s\n", statbuf.st_size, buf);
 			size += statbuf.st_size;
@@ -651,6 +815,12 @@ int __printSize(const char *filepath, int curDepth, int depth) {
 	return size;
 }
 
+/**
+  size 명령어를 실질적으로 처리하는 함수
+  @param filepath 용량을 출력할 파일의 경로
+  @param dOption -d 옵션에 명시된 depth 값
+  @return 성공 시 0, 실패 시 -1
+  */
 int printSize(const char *filepath, int dOption) {
 	struct stat statbuf;
 	char buf[BUF_LEN];
@@ -660,6 +830,7 @@ int printSize(const char *filepath, int dOption) {
 		return -1;
 	}
 
+	// 상대경로로 만들어줌
 	if (filepath[0] == '.') {
 		strcpy(buf, filepath);
 	}
@@ -667,6 +838,7 @@ int printSize(const char *filepath, int dOption) {
 		sprintf(buf, "./%s", filepath);
 	}
 
+	// depth 가 1 이하라면 디렉토리 크기를 구해서 바로 출력해줌
 	if (dOption <= 1) {
 		long size = getSize(buf);
 		if (size < 0) {
@@ -680,6 +852,11 @@ int printSize(const char *filepath, int dOption) {
 	return 0;
 }
 
+/**
+  휴지통 파일에서 파일명 끝에 붙는 인덱스를 알려주는 함수
+  @param filepath trash/files 파일명
+  @return 성공 시 인덱스, 실패 시 -1
+  */
 int getIndex(const char *filepath) {
 	char *p;
 	p = strrchr(filepath, '_');
@@ -690,33 +867,54 @@ int getIndex(const char *filepath) {
 	return atoi(p);
 }
 
-int deleteTimeSort(const struct dirent **left, const struct dirent **right) {
+/**
+  scandir 에서 trash/files 의 파일들의 인덱스를 기준으로 오름차순 정렬해주는 함수
+  */
+int endIndexSort(const struct dirent **left, const struct dirent **right) {
 	int leftIndex, rightIndex;
 	leftIndex = getIndex((*left)->d_name);
 	rightIndex = getIndex((*right)->d_name);
 	return leftIndex > rightIndex;
 }
 
+/**
+  trash/info 파일에서 레코드 단위로 읽어내는 함수
+  @param fp trash/info 파일
+  @param infoNode 읽은 정보를 저장할 노드
+  @return 성공 시 0. 실패 시 -1
+  */
 int readTrashInfo(FILE *fp, struct info_node *infoNode) {
 	char buf[BUF_LEN];
 
 	// 파일명
-	fgets(buf, sizeof(buf), fp);
+	if (fgets(buf, sizeof(buf), fp) < 0)
+		return -1;
+
 	buf[strlen(buf) - 1] = '\0';
 	strcpy(infoNode->filepath, buf);
 		
 	// 삭제 시간
-	fgets(buf, sizeof(buf), fp);
+	if (fgets(buf, sizeof(buf), fp) < 0)
+		return -1;
+
 	buf[strlen(buf) - 1] = '\0';
 	strcpy(infoNode->deletionTime, buf + 4);
 
 	// 수정 시간
-	fgets(buf, sizeof(buf), fp);
+	if (fgets(buf, sizeof(buf), fp) < 0)
+		return -1;
+
 	buf[strlen(buf) - 1] = '\0';
 	strcpy(infoNode->modificationTime, buf + 4);
 	return 0;
 }
 
+/**
+  파일을 복구하는 함수
+  @param filepath 복구할 파일 경로
+  @param lOption -l 옵션 여부
+  @return 성공 시 0, 실패 시 -1
+  */
 int recoverFile(const char *filepath, int lOption) {
 	const char *filename;
 	char buf[BUF_LEN];
@@ -744,7 +942,7 @@ int recoverFile(const char *filepath, int lOption) {
 	if (lOption) {
 		sprintf(buf, "%s/%s", cwd, TRASH_INFO);
 
-		if ((count = scandir(buf, &fileList, ignoreParentAndSelfDirFilter, deleteTimeSort)) < 0) {
+		if ((count = scandir(buf, &fileList, ignoreParentAndSelfDirFilter, endIndexSort)) < 0) {
 			fprintf(stderr, "scandir error\n");
 			return -1;
 		}
@@ -762,13 +960,13 @@ int recoverFile(const char *filepath, int lOption) {
 			// 파일 크기
 			fseek(fp, 0, SEEK_END);
 			fileSize = ftell(fp);
-
 			fseek(fp, 0, SEEK_SET);
 
 			// [Trash info] 읽어냄
 			char buf[BUF_LEN];
 			fgets(buf, sizeof(buf), fp);
 
+			// 파일 읽으면서 오래된 순으로 infoList 구축
 			while (ftell(fp) < fileSize) {
 				infoNode = calloc(1, sizeof(struct info_node));
 				readTrashInfo(fp, infoNode);
@@ -779,6 +977,8 @@ int recoverFile(const char *filepath, int lOption) {
 
 		infoNode = infoList;
 		int i = 0;
+
+		// 오래 전에 삭제한 파일부터 출력
 		while (infoNode != NULL) {
 			printf("%d. %s\t\t%s\n", i + 1, strrchr(infoNode->filepath, '/') + 1, infoNode->deletionTime);
 			infoNode = infoNode->next;
@@ -883,11 +1083,12 @@ int recoverFile(const char *filepath, int lOption) {
 		remove(buf);
 	}
 	else {
-		// 파일 내용 다 지우고
+		// info 파일 내용 다 지우고
 		freopen(buf, "w", fp);
 
 		fprintf(fp, "[Trash info]\n");
 
+		// 다시 쓰기
 		infoNode = infoList;
 		while (infoNode != NULL) {
 			fprintf(fp, "%s\nD : %s\nM : %s\n", infoNode->filepath, infoNode->deletionTime, infoNode->modificationTime);
@@ -900,14 +1101,23 @@ int recoverFile(const char *filepath, int lOption) {
 	return 0;
 }
 
+/**
+  scandir 에서 .과 .. 파일 빼고 모든 파일을 읽어오는 필터
+  */
 int ignoreParentAndSelfDirFilter(const struct dirent *dir) {
 	if (!strcmp(dir->d_name, ".") || !strcmp(dir->d_name, ".."))
 		return 0;
 	return 1;
 }
 
-
-int __printTree(const char *filepath, int depth, int needIndent) {
+/**
+  트리를 그려주는 함수
+  @param filepath 현재 출력해야하는 파일의 경로
+  @param depth 현태 트리의 depth
+  @param needIndent 왼쪽 여백을 만들어줘야하는지 여부 (디렉토리의 첫 번째 자식 파일은 indent 가 필요없음)
+  @return 성공 시 0, 실패 시 -1
+  */
+static int __printTree(const char *filepath, int depth, int needIndent) {
 	struct dirent **fileList;
 	struct stat statbuf;
 	int count;
@@ -916,9 +1126,14 @@ int __printTree(const char *filepath, int depth, int needIndent) {
 	const char *fnamep;
 	char nameBlock[10];
 	char emptyBlock[10];
+
+	// 이름 블럭
 	sprintf(nameBlock, "|%%-%ds", TAB_SIZE - 1);
+
+	// 여백 블럭
 	sprintf(emptyBlock, "%%-%ds", TAB_SIZE);
 
+	// 파일 이름
 	fnamep = strrchr(filepath, '/') + 1;
 	if (fnamep == NULL)
 		fnamep = filepath;
@@ -928,6 +1143,7 @@ int __printTree(const char *filepath, int depth, int needIndent) {
 
 	// 파일인 경우
 	if (!S_ISDIR(statbuf.st_mode)) {
+		// 인덴트가 필요하다면 depth 만큼 빈 블럭 출력
 		if (needIndent) {
 			for (int i = 0; i < depth; i++)
 				printf(emptyBlock, "");
@@ -938,13 +1154,14 @@ int __printTree(const char *filepath, int depth, int needIndent) {
 	}
 
 	// 디렉토리인 경우
-
 	// 디렉토리 내부 파일 구조 탐색
 	if ((count = scandir(filepath, &fileList, ignoreParentAndSelfDirFilter, alphasort)) < 0) {
 		fprintf(stderr, "%s scandir error\n", filepath);
 		return -1;
 	}
 
+	// 빈 디렉토리가 아니라면
+	// 하위 파일을 이어서 출력해야하기 때문에 {디렉토리명}----{파일명} 과 같은 포맷을 위해 -를 추가
 	if (count > 0) {
 		for (int i = strlen(filename); i < TAB_SIZE - 1; i++) {
 			filename[i] = '-';
@@ -952,12 +1169,14 @@ int __printTree(const char *filepath, int depth, int needIndent) {
 		filename[TAB_SIZE - 1] = '\0';
 	}
 
+	// 디렉토리여도 인덴트가 필요한 경우 인덴트 출력
 	if (needIndent) {
 		for (int i = 0; i < depth; i++)
 			printf(emptyBlock, "");
 	}
 	printf(nameBlock, filename);
 
+	// 재귀적으로 하위 파일 출력
 	for (int i = 0; i < count; i++) {
 		sprintf(buf, "%s/%s", filepath, fileList[i]->d_name);
 		__printTree(buf, depth + 1, i > 0);
@@ -969,6 +1188,10 @@ int __printTree(const char *filepath, int depth, int needIndent) {
 	return count;
 }
 
+/**
+  트리를 출력해주는 함수
+  @return 성공 시 0, 실패 시 -1
+  */
 int printTree() {
 	char buf[BUF_LEN];
 	sprintf(buf, "%s/%s", cwd, DIRECTORY);

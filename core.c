@@ -106,7 +106,9 @@ void* deleteThread() {
 
 				// 파일 삭제 후 삭제 리스트에서 제거
 				if (node->iOption) {
-					remove(node->filepath);
+					if (remove(node->filepath) < 0) {
+						printf("Cannot delete %s\n", node->filepath);
+					}	
 				} else {
 					if (sendToTrash(node->filepath) < 0) {
 						fprintf(stderr, "sendToTrash error\n");
@@ -275,7 +277,10 @@ int __deleteFile(const char *filepath, const char *endDate, const char *endTime,
 		}
 
 		if (iOption) {
-			remove(filepath);
+			if (remove(filepath) < 0) {
+				printf("Cannot delete %s\n", filepath);
+				return -1;
+			}
 		} else {
 			if (sendToTrash(filepath) < 0) {
 				fprintf(stderr, "%s send to trash error\n", filepath);
@@ -409,6 +414,8 @@ int deleteOldTrashFile(int curSize, int maxSize) {
 
 		num = strlen(infoList->filepath) + strlen(infoList->deletionTime) + strlen(infoList->modificationTime) + 11;
 		curSize -= num;
+
+		// @TODO: 폴더 삭제 예외처리
 		remove(buf);
 		char buf2[BUF_LEN];
 		

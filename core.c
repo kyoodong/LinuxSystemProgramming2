@@ -768,7 +768,7 @@ int recoverFile(const char *filepath, int lOption) {
 		int i = 0;
 		while (infoNode != NULL) {
 			// @TODO: 파일명만 출력해야하나?
-			printf("%d. %s\t\t%s\n", i + 1, infoNode->filepath + strlen(cwd) + 2 + strlen(DIRECTORY), infoNode->deletionTime);
+			printf("%d. %s\t\t%s\n", i + 1, strrchr(infoNode->filepath, '/') + 1, infoNode->deletionTime);
 			infoNode = infoNode->next;
 			i++;
 		}

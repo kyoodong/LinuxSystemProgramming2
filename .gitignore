@@ -6,4 +6,4 @@ dir/
 mdaemon
 mdebug
 log.txt
-
+*.txt

@@ -701,6 +701,16 @@ int getSize(const char *dirpath) {
 	int count;
 	int tmp;
 
+	if (stat(dirpath, &statbuf) < 0) {
+		fprintf(stderr, "%s stat error\n", dirpath);
+		return -1;
+	}
+
+	// 파일인 경우
+	if (!S_ISDIR(statbuf.st_mode)) {
+		return statbuf.st_size;
+	}
+
 	if ((count = scandir(dirpath, &dirList, ignoreParentAndSelfDirFilter, NULL)) < 0) {
 		fprintf(stderr, "%s scandir error\n", dirpath);
 		return -1;
@@ -845,7 +855,7 @@ int printSize(const char *filepath, int dOption) {
 	}
 	printf("%ld\t%s\n", size, buf);
 	
-	if (dOption > 1) {
+	if (dOption > 1 && S_ISDIR(statbuf.st_mode)) {
 		__printSize(buf, 0, dOption - 1);
 	}
 	return 0;

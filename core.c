@@ -60,17 +60,23 @@ void releaseInputStream() {
 
 void* deleteThread() {
 	struct deletion_node *node, *tmp;
-	time_t curTime;
+	struct tm *tm;
+	time_t t;
+	char curTime[50];
+
 	while (1) {
 		pthread_mutex_lock(&deletionThreadMutex);
 		node = deletionList;
-		curTime = time(NULL);
+		t = time(NULL);
+		tm = localtime(&t);
+		strftime(curTime, sizeof(curTime), TIME_FORMAT, tm);
+
 		while (node != NULL) {
 			// 삭제해야하는 파일 발견 시
-			if (node->endTime <= curTime) {
+			if (strcmp(node->endTime, curTime) < 0) {
 				tmp = node;
 
-				printf("[filename]: %s\ncurTime = %ld\nendTime = %ld\n", node->filepath, curTime, node->endTime);
+				printf("[filename]: %s\ncurTime = %s\nendTime = %s\n", node->filepath, curTime, node->endTime);
 				// 이미 삭제된 경우
 				if (access(node->filepath, F_OK) != 0) {
 					printf("file %s is already deleted\n", node->filepath);
@@ -301,7 +307,7 @@ int __deleteFile(const char *filepath, const char *endDate, const char *endTime,
 		if (iOption) {
 			if (remove(filepath) < 0) {
 				printf("Cannot delete %s\n", filepath);
-				return -1;
+				return 0;
 			}
 		} else {
 			if (sendToTrash(filepath) < 0) {
@@ -314,17 +320,12 @@ int __deleteFile(const char *filepath, const char *endDate, const char *endTime,
 
 	// 지정된 시간에 삭제
 	sprintf(buffer, "%s %s", endDate, endTime);
-	strcat(buffer, ":00");
-	strptime(buffer, TIME_FORMAT, &tm);
 	node = calloc(1, sizeof(struct deletion_node));
-	strcpy(node->filepath, realpath(filepath, buffer));
 	node->iOption = iOption;
 	node->rOption = rOption;
-	node->endTime = mktime(&tm);
-
-	if (node->endTime == -1) {
-		return -1;
-	}
+	strcpy(node->endTime, buffer);
+	strcat(node->endTime, ":00");
+	strcpy(node->filepath, realpath(filepath, buffer));
 	insertDeletionNode(node);
 	return 0;
 }

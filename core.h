@@ -7,15 +7,14 @@
 #define TRASH_INFO "trash/info"
 #define MAX_TRASH_INFO_SIZE (1024 * 2)
 #define TIME_FORMAT "%Y-%m-%d %H:%M:%S"
-#define TIME_FORMAT_LEN 19
-#define DELETE_INTERVAL 0 
+#define DELETE_INTERVAL 5
 #define TAB_SIZE 21
 #define BUF_LEN 1024
 #define DIRECTORY "dir"
 
 struct deletion_node {
 	char filepath[BUF_LEN];
-	time_t endTime;
+	char endTime[50];
 	int rOption;
 	int iOption;
 	struct deletion_node *next, *prev;

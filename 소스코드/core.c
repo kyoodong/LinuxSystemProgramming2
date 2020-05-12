@@ -94,7 +94,6 @@ void* deleteThread() {
 			if (strcmp(node->endTime, curTime) < 0) {
 				tmp = node;
 
-				printf("[filename]: %s\ncurTime = %s\nendTime = %s\n", node->filepath, curTime, node->endTime);
 				// 이미 삭제된 경우
 				if (access(node->filepath, F_OK) != 0) {
 					printf("file %s is already deleted\n", node->filepath);
@@ -109,7 +108,7 @@ void* deleteThread() {
 
 					// y, n 둘 중 하나를 제대로 입력할 때까지 반복
 					while (1) {
-						printf("Delete [y/n]? ");
+						printf("\nDelete %s [y/n]? ", node->filepath + strlen(cwd) + strlen(DIRECTORY) + 2);
 						fflush(stdout);
 						getInputStream();
 
@@ -266,7 +265,6 @@ void insertInfoNode(struct info_node *node) {
   @param node 삭제할 노드
   */
 void removeDeletionNode(struct deletion_node *node) {
-	pthread_mutex_lock(&deletionThreadMutex);
 	// 루트
 	if (node->prev == NULL) {
 		deletionList = node->next;
@@ -274,7 +272,6 @@ void removeDeletionNode(struct deletion_node *node) {
 			deletionList->prev = NULL;
 
 		free(node);
-		pthread_mutex_unlock(&deletionThreadMutex);
 		return;
 	}
 
@@ -284,7 +281,6 @@ void removeDeletionNode(struct deletion_node *node) {
 		node->next->prev = node->prev;
 	}
 	free(node);
-	pthread_mutex_unlock(&deletionThreadMutex);
 }
 
 /**
@@ -292,7 +288,6 @@ void removeDeletionNode(struct deletion_node *node) {
   @param nodw 추가할 노드
   */
 void insertDeletionNode(struct deletion_node *node) {
-	pthread_mutex_lock(&deletionThreadMutex);
 	struct deletion_node *tmp, *prev;
 
 	// 루트
@@ -300,7 +295,6 @@ void insertDeletionNode(struct deletion_node *node) {
 		node->prev = NULL;
 		node->next = NULL;
 		deletionList = node;
-		pthread_mutex_unlock(&deletionThreadMutex);
 		return;
 	}
 
@@ -308,7 +302,7 @@ void insertDeletionNode(struct deletion_node *node) {
 	prev = NULL;
 
 	// endTime(삭제 예정 시간)을 기준으로 오름차순 삽입 정렬
-	while (tmp->endTime < node->endTime) {
+	while (strcmp(tmp->endTime, node->endTime) < 0) {
 		prev = tmp;
 		tmp = tmp->next;
 
@@ -321,7 +315,6 @@ void insertDeletionNode(struct deletion_node *node) {
 		node->next = deletionList;
 		deletionList->prev = node;
 		deletionList = node;
-		pthread_mutex_unlock(&deletionThreadMutex);
 		return;
 	}
 
@@ -331,7 +324,6 @@ void insertDeletionNode(struct deletion_node *node) {
 
 	if (node->next != NULL)
 		node->next->prev = node;
-	pthread_mutex_unlock(&deletionThreadMutex);
 }
 
 /**
@@ -379,6 +371,7 @@ static int __deleteFile(const char *filepath, const char *endDate, const char *e
 		if (rOption) {
 			printf("Delete [y/n]? ");
 			char c = getchar();
+			getchar();
 
 			if (c == 'n')
 				return 0;

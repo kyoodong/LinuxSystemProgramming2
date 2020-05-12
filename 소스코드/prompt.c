@@ -287,7 +287,6 @@ void processTree(char *paramStr) {
 
 /**
   도움말 기능 처리 하는 함수
-  @param paramStr 파라미터 문자열
   */
 void processHelp() {
 	printf("delete <filename> <endtime> <option>\n");

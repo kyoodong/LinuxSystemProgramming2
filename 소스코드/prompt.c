@@ -88,9 +88,15 @@ int printPrompt() {
   @return 종료 시 1, 종료 아닐 시 0
   */
 int processCommand(char *commandStr) {
-	char* operator = strtok(commandStr, " ");
+	char operator[20];
+	char *cp = commandStr;
+	int index = 0;
 
-	if (operator == NULL) {
+	memset(operator, 0, sizeof(operator));
+	while (*cp != ' ' && *cp != '\n' && *cp != '\0') 
+		operator[index++] = *cp++;
+
+	if (index == 0) {
 		printPrompt();
 		return 0;
 	}
@@ -98,16 +104,16 @@ int processCommand(char *commandStr) {
 	strcpy(command, operator);
 
 	if (!strcmp(command, DELETE)) {
-		processDelete(commandStr + strlen(command) + 1);
+		processDelete(commandStr);
 	}
 	else if (!strcmp(command, SIZE)) {
-		processSize(commandStr + strlen(command) + 1);
+		processSize(commandStr);
 	}
 	else if (!strcmp(command, RECOVER)) {
-		processRecover(commandStr + strlen(command) + 1);
+		processRecover(commandStr);
 	}
 	else if (!strcmp(command, TREE)) {
-		processTree(commandStr + strlen(command) + 1);
+		processTree(commandStr);
 	}
 	else if (!strcmp(command, EXIT)) {
 		printf("Exit program...\n");
@@ -131,18 +137,9 @@ void processDelete(char *paramStr) {
 	char *argv[10];
 	int argc = getArg(paramStr, argv);
 
-	if (argc < 1) {
+	if (argc <= 1) {
 		printf("[Delete] Usage : delete <filename> <end_time> <options>\n");
 		return;
-	}
-
-	// 입력한 파일을 열 수 있는지 확인
-	filename = argv[0];
-
-	// endDate 가 정상적으로 입력된 경우
-	if (argc >= 3 && argv[1][0] != '-' && argv[2][0] != '-') {
-		endDate = argv[1];
-		endTime = argv[2];
 	}
 
 	// 옵션 체크
@@ -160,6 +157,15 @@ void processDelete(char *paramStr) {
 				printf("[Delete]: Unknown option %s\n", argv[optind - 1]);
 				break;
 		}
+	}
+
+	// 입력한 파일을 열 수 있는지 확인
+	filename = argv[optind];
+
+	// endDate 가 정상적으로 입력된 경우
+	if (argc - optind == 3 && argv[optind + 1][0] != '-' && argv[optind + 2][0] != '-') {
+		endDate = argv[optind + 1];
+		endTime = argv[optind + 2];
 	}
 
 	// delete 처리 로직
@@ -212,12 +218,10 @@ void processSize(char *paramStr) {
 	int option;
 	int dOption = 0;
 
-	if (argc == 0) {
-		fprintf(stderr, "usage: size <filename> <option>\n>");
+	if (argc == 1) {
+		fprintf(stderr, "usage: size <filename> <option>\n");
 		return;
 	}
-
-	filepath = argv[0];
 
 	while ((option = getopt(argc, argv, "d:")) != -1) {
 		switch (option) {
@@ -229,6 +233,8 @@ void processSize(char *paramStr) {
 				break;
 		}
 	}
+
+	filepath = argv[optind];
 
 	// 사이즈 출력
 	printSize(filepath, dOption);
@@ -243,7 +249,6 @@ void processSize(char *paramStr) {
   복구 기능 처리 하는 함수
   @param paramStr 파라미터 문자열
   */
-
 void processRecover(char *paramStr) {
 	char *filepath;
 	char *argv[10];
@@ -251,12 +256,10 @@ void processRecover(char *paramStr) {
 	int option;
 	int lOption = 0;
 
-	if (argc == 0) {
+	if (argc == 1) {
 		fprintf(stderr, "usage: recover <filename> <option>\n>");
 		return;
 	}
-
-	filepath = argv[0];
 
 	while ((option = getopt(argc, argv, "l")) != -1) {
 		switch (option) {
@@ -268,6 +271,7 @@ void processRecover(char *paramStr) {
 				break;
 		}
 	}
+	filepath = argv[optind];
 	
 	// 파일 복구
 	recoverFile(filepath, lOption);

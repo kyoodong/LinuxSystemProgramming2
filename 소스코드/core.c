@@ -256,8 +256,15 @@ void insertInfoNode(struct info_node *node) {
 		tmp = tmp->next;
 	}
 
-	tmp->next = node;
-	node->prev = tmp;
+	if (strcmp(tmp->deletionTime, node->deletionTime) <= 0) {
+		tmp->next = node;
+		node->prev = tmp;
+	} else {
+		tmp->prev->next = node;
+		node->prev = tmp->prev;
+		node->next = tmp;
+		tmp->prev = node;
+	}
 }
 
 /**

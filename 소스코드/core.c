@@ -1042,7 +1042,7 @@ int recoverFile(const char *filepath, int lOption) {
 		scanf("%d", &num);
 		getchar();
 		if (num > count) {
-			fprintf(stderr, "Select num up to %d in %s.\n", count, TRASH);
+			fprintf(stderr, "Select num up to %d.\n", count);
 			clearInfoList();
 			return -1;
 		}

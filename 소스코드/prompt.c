@@ -88,6 +88,9 @@ int printPrompt() {
   @return 종료 시 1, 종료 아닐 시 0
   */
 int processCommand(char *commandStr) {
+	while (*commandStr == ' ')
+		commandStr++;
+
 	char operator[20];
 	char *cp = commandStr;
 	int index = 0;

@@ -110,6 +110,7 @@ int processCommand(char *commandStr) {
 		processTree(commandStr + strlen(command) + 1);
 	}
 	else if (!strcmp(command, EXIT)) {
+		printf("Exit program...\n");
 		return 1;
 	}
 	else {

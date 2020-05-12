@@ -835,8 +835,8 @@ int printSize(const char *filepath, int dOption) {
 	char buf[BUF_LEN];
 
 	if (stat(filepath, &statbuf) < 0) {
-		fprintf(stderr, "%s stat error\n", filepath);
-		return -1;
+		printf("File %s does not exist\n", filepath);
+		return 0;
 	}
 
 	// 상대경로로 만들어줌

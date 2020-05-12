@@ -1,7 +1,6 @@
 ssu_mntr
 *.o
 trash/
-dir/
 /trash
 mdaemon
 mdebug

@@ -1192,6 +1192,9 @@ static int __printTree(const char *filepath, int depth, int needIndent) {
 	}
 	printf(nameBlock, filename);
 
+	if (count == 0)
+		printf("\n");
+
 	// 재귀적으로 하위 파일 출력
 	for (int i = 0; i < count; i++) {
 		sprintf(buf, "%s/%s", filepath, fileList[i]->d_name);

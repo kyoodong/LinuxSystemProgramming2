@@ -80,6 +80,7 @@ test:
 	touch dir/17
 	touch dir/18
 	touch dir/19
+	touch dir/dir_empty5
 
 
 show:

@@ -403,6 +403,12 @@ static int __deleteFile(const char *filepath, const char *endDate, const char *e
 	strcat(node->endTime, ":00");
 	strcpy(node->filepath, realpath(filepath, buffer));
 
+	if (strptime(node->endTime, TIME_FORMAT, &tm) == NULL) {
+		free(node);
+		printf("Invalid timeformat\n");
+		return 0;
+	}
+
 	// 리스트 추가
 	insertDeletionNode(node);
 	return 0;
@@ -928,9 +934,11 @@ int recoverFile(const char *filepath, int lOption) {
 	struct dirent **fileList;
 
 	// 파일 이름 추출
-	filename = strrchr(filepath, '/');
+	filename = strchr(filepath, '/');
 	if (filename == NULL)
 		filename = filepath;
+	else
+		filename++;
 
 	// 휴지통에 해당 파일이 있는지 확인
 	// r+ 옵션은 파일이 없는 경우 에러를 발생시킴

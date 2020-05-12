@@ -61,6 +61,25 @@ test:
 	touch dir/dir1/dir2/3.c
 	touch dir/dir1/dir2/4.c
 	mkdir dir/dir_empty
+	touch dir/1
+	touch dir/2
+	touch dir/3
+	touch dir/4
+	touch dir/5
+	touch dir/6
+	touch dir/7
+	touch dir/8
+	touch dir/9
+	touch dir/10
+	touch dir/11
+	touch dir/12
+	touch dir/13
+	touch dir/14
+	touch dir/15
+	touch dir/16
+	touch dir/17
+	touch dir/18
+	touch dir/19
 
 
 show:

@@ -24,7 +24,7 @@ char* commandList[6] = {
 
 /**
   프롬프트 출력해주는 함수
-  @return 종료 시 1, 종료 아닐 시 0
+  @return 종료 시 1, 종료 아닐 시 0, 에러 시 -1
   */
 int printPrompt() {
 	char c;
@@ -200,6 +200,10 @@ int getArg(char* paramStr, char *argv[10]) {
 	return count;
 }
 
+/**
+  size 기능 처리 하는 함수
+  @param paramStr 파라미터 문자열
+  */
 void processSize(char *paramStr) {
 	char *filepath;
 	char *argv[10];
@@ -233,6 +237,11 @@ void processSize(char *paramStr) {
 	}
 	optind = 0;
 }
+
+/**
+  복구 기능 처리 하는 함수
+  @param paramStr 파라미터 문자열
+  */
 
 void processRecover(char *paramStr) {
 	char *filepath;
@@ -268,10 +277,18 @@ void processRecover(char *paramStr) {
 	optind = 0;
 }
 
+/**
+  트리 기능 처리 하는 함수
+  @param paramStr 파라미터 문자열
+  */
 void processTree(char *paramStr) {
 	printTree(".");
 }
 
+/**
+  도움말 기능 처리 하는 함수
+  @param paramStr 파라미터 문자열
+  */
 void processHelp() {
 	printf("delete <filename> <endtime> <option>\n");
 	printf("\t-i : delete file directly without backup to trash directory.\n");

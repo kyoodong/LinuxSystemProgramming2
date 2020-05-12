@@ -360,7 +360,7 @@ int filterOnlyDirectory(const struct dirent *info) {
   @param endTime 삭제 예정 시간, NULL 인 경우 즉시 삭제
   @param iOption -i 옵션 on/off 여부, 삭제 시 휴지통으로 보내지 않고 바로 지우는 옵션
   @param rOption -r 옵션 on/off 여부, 삭제 시 다시 한 번 확인하는 옵션
-  @return 삭제 성공 시 0, 실패 시 -1, 없는 파일을 삭제하려고 한 경우 1
+  @return 삭제 성공 시 0, 에러 시 -1, 없는 파일을 삭제하려고 한 경우 1
   */
 static int __deleteFile(const char *filepath, const char *endDate, const char *endTime, int iOption, int rOption) {
 	char buffer[BUF_LEN];
@@ -479,7 +479,7 @@ int deleteFile(const char *filepath, const char *endDate, const char *endTime, i
   오래된 trash info 파일을 삭제해주는 함수
   @param curSize 현재 trash/info 디렉토리 용량
   @param maxSize 허용된 최대 trash/info 디렉토리 용량 (2KB)
-  @return 성공 시 0, 실패 시 -1
+  @return 성공 시 0, 에러 시 -1
   */
 int deleteOldTrashFile(int curSize, int maxSize) {
 	char buf[BUF_LEN];
@@ -611,7 +611,7 @@ int removeDir(const char *filepath) {
 /**
   파일을 휴지통에 보내는 함수
   @param filepath 휴지통에 보낼 파일 경로
-  @return 성공 시 0, 실패 시 -1
+  @return 성공 시 0, 에러 시 -1
   */
 int sendToTrash(const char *filepath) {
 	char *p;
@@ -749,7 +749,7 @@ int getSize(const char *dirpath) {
   @param filepath 용량을 출력할 파일의 경로
   @param curDepth 현재 파일의 깊이
   @param depth 최대 깊이
-  @return 성공 시 파일 및 디렉토리의 용량, 실패 시 -1
+  @return 성공 시 파일 및 디렉토리의 용량, 에러 시 -1
   */
 static int __printSize(const char *filepath, int curDepth, int depth) {
 	char buf[BUF_LEN];
@@ -826,10 +826,10 @@ static int __printSize(const char *filepath, int curDepth, int depth) {
 }
 
 /**
-  size 명령어를 실질적으로 처리하는 함수
+  size 명령어를 처리하는 함수
   @param filepath 용량을 출력할 파일의 경로
   @param dOption -d 옵션에 명시된 depth 값
-  @return 성공 시 0, 실패 시 -1
+  @return 성공 시 0, 에러 시 -1
   */
 int printSize(const char *filepath, int dOption) {
 	struct stat statbuf;
@@ -864,7 +864,7 @@ int printSize(const char *filepath, int dOption) {
 /**
   휴지통 파일에서 파일명 끝에 붙는 인덱스를 알려주는 함수
   @param filepath trash/files 파일명
-  @return 성공 시 인덱스, 실패 시 -1
+  @return 성공 시 인덱스, 에러 시 -1
   */
 int getIndex(const char *filepath) {
 	char *p;
@@ -890,7 +890,7 @@ int endIndexSort(const struct dirent **left, const struct dirent **right) {
   trash/info 파일에서 레코드 단위로 읽어내는 함수
   @param fp trash/info 파일
   @param infoNode 읽은 정보를 저장할 노드
-  @return 성공 시 0. 실패 시 -1
+  @return 성공 시 0. 에러 시 -1
   */
 int readTrashInfo(FILE *fp, struct info_node *infoNode) {
 	char buf[BUF_LEN];
@@ -922,7 +922,7 @@ int readTrashInfo(FILE *fp, struct info_node *infoNode) {
   파일을 복구하는 함수
   @param filepath 복구할 파일 경로
   @param lOption -l 옵션 여부
-  @return 성공 시 0, 실패 시 -1
+  @return 성공 시 0, 에러 시 -1
   */
 int recoverFile(const char *filepath, int lOption) {
 	const char *filename;
@@ -1124,7 +1124,7 @@ int ignoreParentAndSelfDirFilter(const struct dirent *dir) {
   @param filepath 현재 출력해야하는 파일의 경로
   @param depth 현태 트리의 depth
   @param needIndent 왼쪽 여백을 만들어줘야하는지 여부 (디렉토리의 첫 번째 자식 파일은 indent 가 필요없음)
-  @return 성공 시 0, 실패 시 -1
+  @return 성공 시 0, 에러 시 -1
   */
 static int __printTree(const char *filepath, int depth, int needIndent) {
 	struct dirent **fileList;
@@ -1199,7 +1199,7 @@ static int __printTree(const char *filepath, int depth, int needIndent) {
 
 /**
   트리를 출력해주는 함수
-  @return 성공 시 0, 실패 시 -1
+  @return 성공 시 0, 에러 시 -1
   */
 int printTree() {
 	char buf[BUF_LEN];

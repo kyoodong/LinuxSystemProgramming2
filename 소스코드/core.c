@@ -368,7 +368,6 @@ static int __deleteFile(const char *filepath, const char *endDate, const char *e
 
 	// 파일이 해당 서브디렉토리에 없으면 건너뜀
 	if (access(filepath, F_OK) != 0) {
-		fprintf(stderr, "File %s is not exist.\n", filepath);
 		return 1;
 	}
 

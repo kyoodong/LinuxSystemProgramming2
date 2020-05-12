@@ -1,4 +1,4 @@
-ssu_mntr: clear daemon main.o prompt.o core.o test
+ssu_mntr: clear daemon main.o prompt.o core.o
 	gcc main.o prompt.o core.o -o ssu_mntr -lpthread
 
 main.o: main.c

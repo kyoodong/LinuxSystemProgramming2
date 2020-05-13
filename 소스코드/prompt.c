@@ -279,14 +279,22 @@ void processRecover(char *paramStr) {
 				break;
 		}
 	}
+
+	if (argc <= optind) {
+		printf("Please enter <filename>\n");
+
+		for (int i = 0; i < argc; i++)
+			free(argv[i]);
+		optind = 0;
+		return;
+	}
 	filepath = argv[optind];
 	
 	// 파일 복구
 	recoverFile(filepath, lOption);
 
-	for (int i = 0; i < argc; i++) {
+	for (int i = 0; i < argc; i++)
 		free(argv[i]);
-	}
 	optind = 0;
 }
 

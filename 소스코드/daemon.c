@@ -48,6 +48,9 @@ struct file* traversal(struct file *rootFile) {
 
 		// 그리고 file 은 다음번에 리턴될 곳을 미리 가리킴
 		ret = file;
+		if (ret == rootFile)
+			return NULL;
+
 		if (file->next_sibling != NULL) {
 			file = file->next_sibling;
 

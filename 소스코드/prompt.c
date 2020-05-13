@@ -236,14 +236,20 @@ void processSize(char *paramStr) {
 		}
 	}
 
+	if (argc <= optind) {
+		printf("Please enter <filename>\n");
+		for (int i = 0; i < argc; i++)
+			free(argv[i]);
+		optind = 0;
+		return;
+	}
 	filepath = argv[optind];
 
 	// 사이즈 출력
 	printSize(filepath, dOption);
 
-	for (int i = 0; i < argc; i++) {
+	for (int i = 0; i < argc; i++)
 		free(argv[i]);
-	}
 	optind = 0;
 }
 

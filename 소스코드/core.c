@@ -962,14 +962,6 @@ int recoverFile(const char *filepath, int lOption) {
 	else
 		filename++;
 
-	// 휴지통에 해당 파일이 있는지 확인
-	// r+ 옵션은 파일이 없는 경우 에러를 발생시킴
-	sprintf(buf, "%s/%s/%s", cwd, TRASH_INFO, filename);
-	if ((fp = fopen(buf, "r+")) == NULL) {
-		printf("There is no '%s' in '%s' directory\n", filepath, TRASH);
-		return -1;
-	}
-
 	// l 옵션 - 휴지통 파일 삭제 시간이 오래된 순으로 출력 후 명령어 실행
 	if (lOption) {
 		sprintf(buf, "%s/%s", cwd, TRASH_INFO);
@@ -1024,6 +1016,15 @@ int recoverFile(const char *filepath, int lOption) {
 		}
 		free(fileList);
 	}
+
+	// 휴지통에 해당 파일이 있는지 확인
+	// r+ 옵션은 파일이 없는 경우 에러를 발생시킴
+	sprintf(buf, "%s/%s/%s", cwd, TRASH_INFO, filename);
+	if ((fp = fopen(buf, "r+")) == NULL) {
+		printf("There is no '%s' in '%s' directory\n", filepath, TRASH);
+		return -1;
+	}
+
 
 	// 파일 크기
 	fseek(fp, 0, SEEK_END);

@@ -7,6 +7,7 @@
 #include <pthread.h>
 #include <dirent.h>
 #include <errno.h>
+#include <pwd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include "prompt.h"
@@ -27,6 +28,9 @@ extern char inputBuffer[BUF_LEN];
 extern pthread_mutex_t inputMutex;
 extern pthread_cond_t inputCond;
 
+struct passwd *pw;
+char homedir[BUF_LEN];
+
 /**
   core.c 코드 사용 전 초기화 함수
   */
@@ -45,6 +49,9 @@ int init() {
 		perror("thread create error : ");
 		exit(1);
 	}
+
+	pw = getpwuid(getuid());
+	strcpy(homedir, pw->pw_dir);
 }
 
 /**
@@ -432,6 +439,7 @@ static int __deleteFile(const char *filepath, const char *endDate, const char *e
 int deleteFile(const char *filepath, const char *endDate, const char *endTime, int iOption, int rOption) {
 	char absoluteFilepath[BUF_LEN];
 	int status;
+	char buf[BUF_LEN];
 
 	pthread_mutex_lock(&deletionThreadMutex);
 	if (filepath == NULL || strlen(filepath) == 0) {
@@ -452,15 +460,21 @@ int deleteFile(const char *filepath, const char *endDate, const char *endTime, i
 	chdir(DIRECTORY);
 
 	// 절대경로
-	if (*filepath == '/') {
+	if (*filepath == '/' || !strncmp(filepath, "~/", 2)) {
+		if (!strncmp(filepath, "~/", 2)) {
+			sprintf(buf, "%s/%s", homedir, filepath + 2);
+		} else {
+			strcpy(buf, filepath);
+		}
+
 		// 지정 디렉토리 이외의 디렉토리에서 삭제를 요구할 경우 에러
 		sprintf(absoluteFilepath, "%s/%s", cwd, DIRECTORY);
-		if (strstr(filepath, absoluteFilepath) == NULL) {
+		if (strstr(buf, absoluteFilepath) == NULL) {
 			printf("Only file which be in the <%s>.\n", absoluteFilepath);
 			pthread_mutex_unlock(&deletionThreadMutex);
 			return 2;
 		}
-		strcpy(absoluteFilepath, filepath);
+		strcpy(absoluteFilepath, buf);
 	}
 	// 상대경로
 	else {
@@ -645,6 +659,7 @@ int sendToTrash(const char *filepath) {
 
 	if (stat(buffer, &statbuf) < 0) {
 		fprintf(stderr, "%s stat error", buffer);
+		fclose(fp);
 		return -1;
 	}
 

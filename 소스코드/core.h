@@ -9,7 +9,7 @@
 #define TIME_FORMAT "%Y-%m-%d %H:%M:%S"
 #define DELETE_INTERVAL 5
 #define TAB_SIZE 21
-#define BUF_LEN 1024
+#define BUF_LEN 512 
 #define DIRECTORY "dir"
 
 struct deletion_node {

@@ -2,7 +2,7 @@
 #define H_PROMPT 1 
 
 #define STUDENT_ID "20162489"
-#define BUF_LEN 1024
+#define BUF_LEN 512 
 
 // 명령어
 #define DELETE "delete"

@@ -471,6 +471,7 @@ int deleteFile(const char *filepath, const char *endDate, const char *endTime, i
 		sprintf(absoluteFilepath, "%s/%s", cwd, DIRECTORY);
 		if (strstr(buf, absoluteFilepath) == NULL) {
 			printf("Only file which be in the <%s>.\n", absoluteFilepath);
+			chdir("../");
 			pthread_mutex_unlock(&deletionThreadMutex);
 			return 2;
 		}
@@ -1091,6 +1092,8 @@ int recoverFile(const char *filepath, int lOption) {
 	// 파일 실제 복구
 	if (rename(trashFilepath, infoNode->filepath) < 0) {
 		fprintf(stderr, "recover file %s error\n", infoNode->filepath);
+		clearInfoList();
+		fclose(fp);
 		return -1;
 	}
 

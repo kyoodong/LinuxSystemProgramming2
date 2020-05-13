@@ -100,7 +100,6 @@ int processCommand(char *commandStr) {
 		operator[index++] = *cp++;
 
 	if (index == 0) {
-		printPrompt();
 		return 0;
 	}
 
